@@ -1,0 +1,3626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmashBeach Pro • Gerenciador de Torneios de Beach Tennis</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <!-- Font Awesome para ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            tennis: {
+              lime: '#D9F99D',
+              neon: '#BEF264',
+              ball: '#C3E619',
+              dark: '#84CC16'
+            },
+            sunset: {
+              light: '#FFEDD5',
+              orange: '#F97316',
+              deep: '#EA580C',
+              coral: '#FB7185'
+            },
+            ocean: {
+              950: '#071324',
+              900: '#0F172A',
+              800: '#1E293B',
+              700: '#334155',
+              sky: '#0284C7'
+            },
+            sand: {
+              50: '#FDFBF7',
+              100: '#FAF5EB',
+              200: '#F3E8D2',
+              300: '#E6D2AC',
+              400: '#D4B47E'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #FDFBF7;
+      background-image: radial-gradient(#E6D2AC 0.65px, transparent 0.65px);
+      background-size: 20px 20px;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+    }
+    /* Custom scrollbar for horizontal bracket on mobile/tablet */
+    .bracket-scroll::-webkit-scrollbar {
+      height: 8px;
+    }
+    .bracket-scroll::-webkit-scrollbar-track {
+      background: #F3E8D2;
+      border-radius: 999px;
+    }
+    .bracket-scroll::-webkit-scrollbar-thumb {
+      background: #D4B47E;
+      border-radius: 999px;
+    }
+    .bracket-scroll::-webkit-scrollbar-thumb:hover {
+      background: #F97316;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="text-ocean-900 min-h-screen flex flex-col antialiased selection:bg-tennis-ball selection:text-ocean-950">
+
+  <!-- Toast / Notificação Flutuante (Substitui alert()) -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Modal de Confirmação Customizado (Substitui confirm()) -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-ocean-950/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-sand-200 transform transition-all">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-11 h-11 rounded-2xl bg-sunset-light text-sunset-deep flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 id="confirm-title" class="font-display font-bold text-lg text-ocean-900">Confirmar ação</h3>
+      </div>
+      <p id="confirm-message" class="text-slate-600 text-sm leading-relaxed mb-6">Tem certeza que deseja continuar?</p>
+      <div class="flex justify-end gap-3">
+        <button id="confirm-cancel-btn" class="px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+          Cancelar
+        </button>
+        <button id="confirm-ok-btn" class="px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-sunset-orange hover:bg-sunset-deep shadow-md shadow-sunset-orange/25 transition">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Gerenciamento de Participantes / Duplas (Pós-Sorteio) -->
+  <div id="participants-manager-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-ocean-950/75 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border border-sand-200 my-auto max-h-[92vh] flex flex-col">
+      <!-- Header do Modal -->
+      <div class="flex items-start sm:items-center justify-between gap-3 pb-4 border-b border-sand-200 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-ocean-900 text-tennis-ball flex items-center justify-center text-lg shrink-0">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <h3 id="pm-modal-title" class="font-display font-extrabold text-lg sm:text-xl text-ocean-900">Gerenciar Participantes</h3>
+            <p id="pm-modal-subtitle" class="text-xs text-slate-500">Adicione, edite/substitua ou remova mesmo após o sorteio.</p>
+          </div>
+        </div>
+        <button onclick="closeParticipantsManager()" class="w-9 h-9 rounded-xl bg-sand-100 hover:bg-sand-200 text-slate-600 flex items-center justify-center transition shrink-0" title="Fechar">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Formulário de Adição Rápida Pós-Sorteio -->
+      <div class="py-4 border-b border-sand-200 shrink-0">
+        <!-- Form Individual (Rei / Rainha) -->
+        <form id="pm-form-add-player" onsubmit="handlePostDrawAddPlayer(event)" class="space-y-2">
+          <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-500">Inserir Novo(a) Atleta no Torneio</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="pm-input-player-name" type="text" placeholder="Nome do(a) novo(a) atleta..." class="flex-grow px-3.5 py-2.5 rounded-xl border border-sand-300 bg-sand-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ocean-sky text-sm font-medium">
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-ocean-900 hover:bg-ocean-sky text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shrink-0">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>Inserir e Atualizar Rodadas</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Form Dupla Fixa (Torneio Normal) -->
+        <form id="pm-form-add-team" onsubmit="handlePostDrawAddTeam(event)" class="hidden space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Inserir Nova Dupla (Máx. 4 por chave)</label>
+            <select id="pm-select-target-group" class="px-3 py-1.5 rounded-lg border border-sand-300 bg-sand-50 text-xs font-bold text-ocean-900 focus:outline-none">
+              <option value="auto">Distribuição Igualitária Automática (Máx. 4)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <input id="pm-input-team-p1" type="text" placeholder="Atleta 1" class="sm:col-span-4 px-3.5 py-2.5 rounded-xl border border-sand-300 bg-sand-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-tennis-dark text-sm font-medium">
+            <input id="pm-input-team-p2" type="text" placeholder="Atleta 2" class="sm:col-span-4 px-3.5 py-2.5 rounded-xl border border-sand-300 bg-sand-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-tennis-dark text-sm font-medium">
+            <button type="submit" class="sm:col-span-4 px-4 py-2.5 rounded-xl bg-ocean-900 hover:bg-tennis-dark hover:text-ocean-950 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-plus"></i>
+              <span>Inserir Dupla</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Lista de Atletas / Duplas Ativos com Edição e Exclusão -->
+      <div class="py-4 overflow-y-auto flex-grow space-y-2.5 pr-1">
+        <div class="flex items-center justify-between mb-1">
+          <span id="pm-list-label" class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Elenco Ativo</span>
+          <span id="pm-list-count" class="px-2.5 py-0.5 rounded-full bg-ocean-900 text-tennis-ball text-xs font-extrabold">0</span>
+        </div>
+        <div id="pm-participants-list" class="space-y-2">
+          <!-- Renderizado via JS -->
+        </div>
+      </div>
+
+      <!-- Rodapé Informativo e Botões de Re-sorteio / Rebalanceamento -->
+      <div class="pt-4 border-t border-sand-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+        <button id="pm-btn-reshuffle-pending" onclick="promptReshufflePendingRounds()" class="px-4 py-2.5 rounded-xl bg-sunset-light hover:bg-orange-200 text-sunset-deep font-bold text-xs transition flex items-center justify-center gap-2 border border-orange-300">
+          <i class="fa-solid fa-shuffle"></i>
+          <span>Re-sortear Jogos Pendentes</span>
+        </button>
+        <button id="pm-btn-rebalance-groups" onclick="promptRebalanceGroups()" class="hidden px-4 py-2.5 rounded-xl bg-sunset-light hover:bg-orange-200 text-sunset-deep font-bold text-xs transition flex items-center justify-center gap-2 border border-orange-300">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <span>Rebalancear Chaves (Máx. 4/chave)</span>
+        </button>
+        <button onclick="closeParticipantsManager()" class="px-5 py-2.5 rounded-xl bg-ocean-900 hover:bg-ocean-800 text-white font-bold text-xs sm:text-sm transition ml-auto">
+          Concluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cabeçalho / Navbar -->
+  <header class="bg-ocean-900 text-white sticky top-0 z-40 shadow-lg border-b-4 border-tennis-ball">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-tennis-ball to-tennis-dark flex items-center justify-center text-ocean-950 shadow-md rotate-3">
+          <i class="fa-solid fa-baseball text-xl sm:text-2xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-display font-extrabold text-lg sm:text-xl tracking-tight text-white">SMASH<span class="text-tennis-ball">BEACH</span></span>
+            <span class="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sunset-orange text-white">Pro</span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-300 hidden xs:block">Gestão Inteligente de Torneios</p>
+        </div>
+      </div>
+
+      <!-- Status / Ações Rápidas no Header -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="active-tournament-badge" onclick="promptRenameActiveTournament()" title="Clique para renomear este campeonato salvo" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-ocean-800 hover:bg-ocean-700 border border-ocean-700 text-xs font-medium text-sand-200 transition cursor-pointer">
+          <span class="w-2 h-2 rounded-full bg-tennis-ball animate-pulse"></span>
+          <span id="header-tournament-name">Torneio Ativo</span>
+          <i class="fa-solid fa-pen text-[10px] text-slate-400"></i>
+        </button>
+        <button id="btn-save-now" onclick="saveCurrentTournamentManually()" class="hidden px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-tennis-ball/20 hover:bg-tennis-ball text-tennis-ball hover:text-ocean-950 text-xs sm:text-sm font-bold transition flex items-center gap-2 border border-tennis-ball/40" title="Salvar alterações deste campeonato">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span class="hidden sm:inline">Salvar</span>
+        </button>
+        <button id="btn-home" onclick="goHome()" class="hidden px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-ocean-800 hover:bg-ocean-700 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-ocean-700" title="Voltar para a tela inicial (o campeonato continua salvo)">
+          <i class="fa-solid fa-folder-open"></i>
+          <span class="hidden sm:inline">Meus Campeonatos</span>
+        </button>
+        <button id="btn-reset-header" onclick="confirmDeleteCurrentTournament()" class="hidden px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-200 hover:text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-rose-500/30" title="Excluir este campeonato salvo">
+          <i class="fa-solid fa-trash-can"></i>
+          <span class="hidden sm:inline">Excluir</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Modal para Salvar / Renomear Campeonato -->
+  <div id="rename-tournament-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-ocean-950/75 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-sand-200">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-11 h-11 rounded-2xl bg-ocean-900 text-tennis-ball flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-bookmark"></i>
+        </div>
+        <div>
+          <h3 class="font-display font-extrabold text-lg text-ocean-900">Nome do Campeonato Salvo</h3>
+          <p class="text-xs text-slate-500">Identifique este campeonato para encontrá-lo facilmente depois.</p>
+        </div>
+      </div>
+      <form onsubmit="handleRenameTournamentSubmit(event)" class="space-y-4">
+        <input id="rename-tournament-input" type="text" required placeholder="Ex: Rei da Praia • Domingo Manhã" class="w-full px-4 py-3 rounded-xl border border-sand-300 bg-sand-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ocean-sky text-sm font-bold text-ocean-900">
+        <div class="flex justify-end gap-2.5">
+          <button type="button" onclick="closeRenameModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs sm:text-sm transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-ocean-900 hover:bg-sunset-orange text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Salvar Nome</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+
+    <!-- =================================================================== -->
+    <!-- VIEW 1: TELA INICIAL / SELEÇÃO DE MODO DE TORNEIO                   -->
+    <!-- =================================================================== -->
+    <section id="view-home" class="space-y-8 animate-fade-in">
+      <!-- Banner Hero -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ocean-900 via-ocean-800 to-ocean-950 text-white p-6 sm:p-10 lg:p-12 shadow-xl border border-ocean-700">
+        <div class="absolute -right-12 -top-12 w-64 h-64 rounded-full bg-sunset-orange/20 blur-3xl pointer-events-none"></div>
+        <div class="absolute right-10 -bottom-16 w-72 h-72 rounded-full bg-tennis-ball/15 blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-3xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-tennis-ball text-xs font-bold uppercase tracking-wider mb-4">
+            <i class="fa-solid fa-sun text-sunset-orange"></i> Areia, Sol & Competição
+          </div>
+          <h1 class="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight mb-4">
+            Organize seu campeonato de <span class="text-transparent bg-clip-text bg-gradient-to-r from-tennis-ball to-sunset-orange">Beach Tennis</span> em segundos.
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base lg:text-lg leading-relaxed mb-6">
+            Escolha o formato ideal para sua arena: rodízio dinâmico individual no <strong>Rei</strong> e <strong>Rainha da Praia</strong>, ou torneio tradicional com <strong>Chaves e Mata-Mata</strong> para duplas fixas.
+          </p>
+        </div>
+      </div>
+
+      <!-- Meus Campeonatos Salvos -->
+      <div id="saved-tournaments-section" class="hidden glass-card rounded-3xl p-6 sm:p-7 border-2 border-tennis-ball/60 shadow-lg space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-sand-200">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-ocean-900 text-tennis-ball flex items-center justify-center text-base shrink-0">
+              <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <div>
+              <h2 class="font-display font-extrabold text-lg sm:text-xl text-ocean-900">Campeonatos Salvos</h2>
+              <p class="text-xs text-slate-500">Seus campeonatos ficam salvos automaticamente. Clique para continuar de onde parou.</p>
+            </div>
+          </div>
+          <span id="saved-tournaments-count" class="self-start sm:self-center px-3 py-1 rounded-full bg-ocean-900 text-tennis-ball text-xs font-extrabold">0 salvos</span>
+        </div>
+
+        <div id="saved-tournaments-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Cards de campeonatos salvos via JS -->
+        </div>
+      </div>
+
+      <!-- Cards de Seleção de Modo -->
+      <div>
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-display font-bold text-xl sm:text-2xl text-ocean-900 flex items-center gap-2.5">
+            <span class="w-2.5 h-7 rounded-full bg-sunset-orange inline-block"></span>
+            Selecione a Modalidade do Campeonato
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Card 1: Rei da Praia -->
+          <div class="group glass-card rounded-3xl p-6 sm:p-7 border-2 border-sand-200 hover:border-ocean-sky shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-28 h-28 bg-sky-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+            <div>
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-ocean-sky to-ocean-900 text-white flex items-center justify-center text-2xl shadow-lg mb-5">
+                <i class="fa-solid fa-crown text-tennis-ball"></i>
+              </div>
+              <span class="inline-block px-2.5 py-1 rounded-lg bg-sky-100 text-ocean-sky text-xs font-bold uppercase tracking-wider mb-2">
+                Individual Masculino
+              </span>
+              <h3 class="font-display font-extrabold text-2xl text-ocean-900 mb-2">Rei da Praia</h3>
+              <p class="text-slate-600 text-sm leading-relaxed mb-5">
+                Duplas sorteadas dinamicamente a cada rodada para que todos joguem com e contra todos. Pontuação e saldo de games individuais em ranking ao vivo.
+              </p>
+              <ul class="space-y-2 text-xs text-slate-600 mb-6">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Sorteio automático de parceiros</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Rodízio justo todos contra todos</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Ranking individual em tempo real</li>
+              </ul>
+            </div>
+            <button onclick="selectTournamentMode('rei')" class="w-full py-3.5 px-5 rounded-2xl bg-ocean-900 hover:bg-ocean-sky text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group-hover:translate-y-[-2px]">
+              <i class="fa-solid fa-crown text-tennis-ball"></i>
+              <span>Criar Rei da Praia</span>
+            </button>
+          </div>
+
+          <!-- Card 2: Rainha da Praia -->
+          <div class="group glass-card rounded-3xl p-6 sm:p-7 border-2 border-sand-200 hover:border-sunset-coral shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-28 h-28 bg-rose-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+            <div>
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-sunset-coral to-sunset-deep text-white flex items-center justify-center text-2xl shadow-lg mb-5">
+                <i class="fa-solid fa-chess-queen text-tennis-lime"></i>
+              </div>
+              <span class="inline-block px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider mb-2">
+                Individual Feminino
+              </span>
+              <h3 class="font-display font-extrabold text-2xl text-ocean-900 mb-2">Rainha da Praia</h3>
+              <p class="text-slate-600 text-sm leading-relaxed mb-5">
+                Formato dinâmico feminino com rotação de duplas a cada partida. Cada atleta soma suas próprias vitórias, saldo de games e games ganhos.
+              </p>
+              <ul class="space-y-2 text-xs text-slate-600 mb-6">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-sunset-orange"></i> Duplas sorteadas a cada rodada</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-sunset-orange"></i> Critérios oficiais de desempate</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-sunset-orange"></i> Pódio exclusivo Rainha da Praia</li>
+              </ul>
+            </div>
+            <button onclick="selectTournamentMode('rainha')" class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-sunset-orange to-sunset-coral hover:from-sunset-deep hover:to-rose-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group-hover:translate-y-[-2px]">
+              <i class="fa-solid fa-chess-queen text-tennis-lime"></i>
+              <span>Criar Rainha da Praia</span>
+            </button>
+          </div>
+
+          <!-- Card 3: Torneio Normal (Duplas Fixas) -->
+          <div class="group glass-card rounded-3xl p-6 sm:p-7 border-2 border-sand-200 hover:border-tennis-dark shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-28 h-28 bg-tennis-ball/20 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+            <div>
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-tennis-ball to-tennis-dark text-ocean-950 flex items-center justify-center text-2xl shadow-lg mb-5">
+                <i class="fa-solid fa-trophy"></i>
+              </div>
+              <span class="inline-block px-2.5 py-1 rounded-lg bg-lime-100 text-lime-800 text-xs font-bold uppercase tracking-wider mb-2">
+                Duplas Fixas • Chaves + Mata-Mata
+              </span>
+              <h3 class="font-display font-extrabold text-2xl text-ocean-900 mb-2">Torneio Normal</h3>
+              <p class="text-slate-600 text-sm leading-relaxed mb-5">
+                Campeonato completo com divisão em chaves (Grupos A, B, C...) e fase eliminatória com Oitavas, Quartas, Semifinal, <strong>Disputa de 3º Lugar</strong> e Final.
+              </p>
+              <ul class="space-y-2 text-xs text-slate-600 mb-6">
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Divisão automática de grupos</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Oitavas, Quartas, Semi, 3º e Final</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-tennis-dark"></i> Avanço automático dos vencedores</li>
+              </ul>
+            </div>
+            <button onclick="selectTournamentMode('normal')" class="w-full py-3.5 px-5 rounded-2xl bg-tennis-ball hover:bg-tennis-neon text-ocean-950 font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 group-hover:translate-y-[-2px]">
+              <i class="fa-solid fa-trophy"></i>
+              <span>Criar Torneio Normal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 2: CONFIGURAÇÃO E CADASTRO DE PARTICIPANTES / DUPLAS           -->
+    <!-- =================================================================== -->
+    <section id="view-setup" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <button onclick="goHome()" class="text-xs font-bold text-slate-500 hover:text-ocean-900 flex items-center gap-1.5 mb-1 transition">
+            <i class="fa-solid fa-arrow-left"></i> Voltar para modalidades
+          </button>
+          <h2 id="setup-title" class="font-display font-extrabold text-2xl sm:text-3xl text-ocean-900">Configurar Torneio</h2>
+          <p id="setup-subtitle" class="text-sm text-slate-600">Adicione os atletas participantes para gerar as rodadas.</p>
+        </div>
+        <button onclick="fillSampleParticipants()" class="px-4 py-2.5 rounded-xl bg-sunset-light hover:bg-orange-200 text-sunset-deep font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 border border-orange-300 shadow-sm shrink-0">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Preencher Nomes de Exemplo</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Coluna Esquerda: Configurações Gerais + Formulário -->
+        <div class="lg:col-span-5 space-y-6">
+          <!-- Card Nome e Regras -->
+          <div class="glass-card rounded-3xl p-6 border border-sand-200 shadow-md space-y-4">
+            <h3 class="font-display font-bold text-lg text-ocean-900 flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-sunset-orange"></i> Detalhes do Campeonato
+            </h3>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nome do Torneio</label>
+              <input id="input-tournament-name" type="text" placeholder="Ex: Open SmashBeach Sol de Verão" class="w-full px-4 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-sunset-orange text-sm font-medium">
+            </div>
+
+            <!-- Opções específicas para Torneio Normal -->
+            <div id="normal-tournament-options" class="hidden space-y-4 pt-2 border-t border-sand-200">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Formato do Torneio</label>
+                <select id="select-normal-format" class="w-full px-4 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-sunset-orange text-sm font-medium">
+                  <option value="groups_knockout">Fase de Grupos (Chaves) + Mata-Mata</option>
+                  <option value="knockout_only">Direto Mata-Mata (Eliminatória Simples)</option>
+                </select>
+              </div>
+              <div id="group-size-wrapper">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tamanho Ideal das Chaves</label>
+                <select id="select-group-size" class="w-full px-4 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-sunset-orange text-sm font-medium">
+                  <option value="3">Chaves de 3 duplas (Recomendado)</option>
+                  <option value="4">Chaves de 4 duplas</option>
+                </select>
+              </div>
+              <div class="p-3 rounded-xl bg-lime-50 border border-lime-200 text-xs text-lime-900 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info text-tennis-dark mt-0.5"></i>
+                <span>O mata-mata ajusta-se automaticamente para <strong>Oitavas, Quartas, Semifinal, Disputa de 3º Lugar e Final</strong> conforme o número de duplas classificadas.</span>
+              </div>
+            </div>
+
+            <!-- Opções específicas para Rei/Rainha -->
+            <div id="king-queen-options" class="hidden space-y-3 pt-2 border-t border-sand-200">
+              <div class="p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs text-ocean-900 flex items-start gap-2">
+                <i class="fa-solid fa-shuffle text-ocean-sky mt-0.5"></i>
+                <span>Para melhor equilíbrio de jogos, recomenda-se cadastrar entre <strong>4 e 12 atletas</strong> (ex: 4, 5, 6 ou 8 atletas geram rodízios completos e equilibrados).</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Adicionar Participante ou Dupla -->
+          <div class="glass-card rounded-3xl p-6 border border-sand-200 shadow-md space-y-4">
+            <h3 id="add-participant-heading" class="font-display font-bold text-lg text-ocean-900 flex items-center gap-2">
+              <i class="fa-solid fa-user-plus text-tennis-dark"></i> Adicionar Atleta
+            </h3>
+
+            <!-- Form Individual (Rei/Rainha) -->
+            <form id="form-add-player" onsubmit="handleAddPlayer(event)" class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Nome do(a) Atleta</label>
+                <div class="flex gap-2">
+                  <input id="input-player-name" type="text" placeholder="Ex: Lucas Mendes" class="flex-grow px-4 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-ocean-sky text-sm font-medium">
+                  <button type="submit" class="px-5 py-2.5 rounded-xl bg-ocean-900 hover:bg-ocean-800 text-white font-bold text-sm transition shrink-0">
+                    <i class="fa-solid fa-plus"></i> Adicionar
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <!-- Form Dupla Fixa (Torneio Normal) -->
+            <form id="form-add-team" onsubmit="handleAddTeam(event)" class="hidden space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Jogador(a) 1</label>
+                  <input id="input-team-p1" type="text" placeholder="Ex: Pedro" class="w-full px-3.5 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-tennis-dark text-sm font-medium">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Jogador(a) 2</label>
+                  <input id="input-team-p2" type="text" placeholder="Ex: Thiago" class="w-full px-3.5 py-2.5 rounded-xl border border-sand-300 bg-white focus:outline-none focus:ring-2 focus:ring-tennis-dark text-sm font-medium">
+                </div>
+              </div>
+              <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-ocean-900 hover:bg-ocean-800 text-white font-bold text-sm transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-user-group"></i> Adicionar Dupla
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Lista de Inscritos -->
+        <div class="lg:col-span-7">
+          <div class="glass-card rounded-3xl p-6 border border-sand-200 shadow-md flex flex-col justify-between min-h-[380px]">
+            <div>
+              <div class="flex items-center justify-between pb-4 mb-4 border-b border-sand-200">
+                <div class="flex items-center gap-2.5">
+                  <h3 id="list-participants-title" class="font-display font-bold text-lg text-ocean-900">Inscritos</h3>
+                  <span id="participants-count-badge" class="px-2.5 py-0.5 rounded-full bg-ocean-900 text-tennis-ball text-xs font-extrabold">0</span>
+                </div>
+                <button onclick="clearParticipantsList()" class="text-xs font-semibold text-rose-600 hover:text-rose-800 transition">
+                  <i class="fa-solid fa-trash-can mr-1"></i> Limpar lista
+                </button>
+              </div>
+
+              <!-- Lista Dinâmica -->
+              <div id="participants-list-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+                <!-- Preenchido via JS -->
+              </div>
+
+              <!-- Estado Vazio -->
+              <div id="participants-empty-state" class="py-12 text-center">
+                <div class="w-16 h-16 rounded-full bg-sand-100 text-sand-400 flex items-center justify-center text-2xl mx-auto mb-3">
+                  <i class="fa-solid fa-users"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-600">Nenhum participante cadastrado ainda</p>
+                <p class="text-xs text-slate-400 mt-1">Adicione manualmente ou clique em "Preencher Nomes de Exemplo"</p>
+              </div>
+            </div>
+
+            <!-- Botão Iniciar Torneio -->
+            <div class="pt-6 mt-6 border-t border-sand-200">
+              <button onclick="startTournament()" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-tennis-ball to-tennis-dark hover:from-tennis-neon hover:to-tennis-ball text-ocean-950 font-display font-extrabold text-base shadow-lg shadow-tennis-dark/20 transition flex items-center justify-center gap-3">
+                <i class="fa-solid fa-play"></i>
+                <span>Sortear e Iniciar Torneio</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- VIEW 3: DASHBOARD DO TORNEIO ATIVO (REI / RAINHA / NORMAL)          -->
+    <!-- =================================================================== -->
+    <section id="view-tournament" class="hidden space-y-6">
+
+      <!-- Barra Superior do Torneio -->
+      <div class="glass-card rounded-3xl p-5 sm:p-6 border border-sand-200 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="flex items-start sm:items-center gap-4">
+          <div id="tourney-mode-icon" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-ocean-900 text-tennis-ball flex items-center justify-center text-2xl shrink-0 shadow-md">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <span id="tourney-mode-badge" class="px-2.5 py-0.5 rounded-full bg-sunset-light text-sunset-deep text-xs font-extrabold uppercase tracking-wider">Rei da Praia</span>
+              <span id="tourney-progress-badge" class="px-2.5 py-0.5 rounded-full bg-sand-200 text-ocean-900 text-xs font-bold">0/0 Jogos Concluídos</span>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1">
+                <i class="fa-solid fa-cloud-check"></i> Salvo automaticamente
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <h2 id="tourney-display-name" class="font-display font-extrabold text-xl sm:text-2xl text-ocean-900">Open SmashBeach Sol</h2>
+              <button onclick="promptRenameActiveTournament()" class="w-8 h-8 rounded-lg bg-sand-100 hover:bg-sand-200 text-slate-600 hover:text-ocean-900 flex items-center justify-center transition" title="Renomear campeonato">
+                <i class="fa-solid fa-pen text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botões de Ação Pós-Sorteio -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="openParticipantsManager()" class="px-3.5 py-2.5 rounded-xl bg-ocean-900 hover:bg-ocean-sky text-white font-bold text-xs transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-users-gear text-tennis-ball"></i>
+            <span id="btn-manage-participants-label">Gerenciar Participantes</span>
+          </button>
+
+          <button onclick="confirmFullReshuffle()" class="px-3.5 py-2.5 rounded-xl bg-sunset-light hover:bg-orange-200 text-sunset-deep font-bold text-xs transition flex items-center gap-2 border border-orange-300">
+            <i class="fa-solid fa-shuffle"></i>
+            <span>Sortear de Novo</span>
+          </button>
+
+          <button id="btn-generate-knockout" onclick="advanceGroupsToKnockout()" class="hidden px-3.5 py-2.5 rounded-xl bg-tennis-ball hover:bg-tennis-neon text-ocean-950 font-extrabold text-xs transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>Gerar Mata-Mata</span>
+          </button>
+
+          <button id="btn-reset-knockout" onclick="confirmResetKnockout()" class="hidden px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-2 border border-rose-200">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Resetar Mata-Mata</span>
+          </button>
+
+          <button onclick="showPodiumModal(true)" class="px-3.5 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs transition flex items-center gap-2 border border-amber-300">
+            <i class="fa-solid fa-trophy text-amber-600"></i>
+            <span>Pódio</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Banner de Pódio Final (1º, 2º e 3º Lugares) -->
+      <div id="podium-banner" class="hidden rounded-3xl bg-gradient-to-br from-ocean-950 via-ocean-900 to-ocean-800 text-white p-6 sm:p-8 shadow-2xl border-2 border-tennis-ball space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/15 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-tennis-ball text-ocean-950 flex items-center justify-center text-2xl shadow-lg">
+              <i class="fa-solid fa-award"></i>
+            </div>
+            <div>
+              <span class="text-xs font-extrabold uppercase tracking-wider text-tennis-ball">Resultado Oficial</span>
+              <h3 id="podium-headline" class="font-display font-extrabold text-xl sm:text-2xl text-white">Pódio do Campeonato</h3>
+            </div>
+          </div>
+          <button onclick="document.getElementById('podium-banner').classList.add('hidden')" class="self-end sm:self-center px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-200 transition">
+            Ocultar Pódio
+          </button>
+        </div>
+        <div id="podium-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <!-- Renderizado via JS -->
+        </div>
+      </div>
+
+      <!-- DASHBOARD MODO 1 e 2: REI E RAINHA DA PRAIA -->
+      <div id="dashboard-king-queen" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Coluna Esquerda: Rodadas e Jogos -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-display font-extrabold text-lg text-ocean-900 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-days text-sunset-orange"></i> Rodadas & Confrontos
+            </h3>
+            <span class="text-xs text-slate-500 font-medium">Duplas sorteadas por rodada</span>
+          </div>
+          <div id="kq-rounds-container" class="space-y-4">
+            <!-- Renderizado via JS -->
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Classificação Individual Oficial CBT -->
+        <div class="lg:col-span-5 glass-card rounded-3xl p-5 sm:p-6 border border-sand-200 shadow-md lg:sticky lg:top-24 space-y-4">
+          <div class="flex items-center justify-between border-b border-sand-200 pb-3">
+            <h3 class="font-display font-extrabold text-lg text-ocean-900 flex items-center gap-2">
+              <i class="fa-solid fa-ranking-star text-tennis-dark"></i> Classificação Individual
+            </h3>
+            <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-ocean-sky">Critério CBT</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="border-b-2 border-sand-200 text-[11px] font-extrabold uppercase text-slate-500">
+                  <th class="py-2 px-2">#</th>
+                  <th class="py-2 px-2">Atleta</th>
+                  <th class="py-2 px-2 text-center" title="Vitórias">V</th>
+                  <th class="py-2 px-2 text-center" title="Saldo de Games (GG - GP)">SG</th>
+                  <th class="py-2 px-2 text-center" title="Game Average">AVG</th>
+                  <th class="py-2 px-2 text-center" title="Games Ganhos">GG</th>
+                </tr>
+              </thead>
+              <tbody id="kq-ranking-tbody" class="divide-y divide-sand-100">
+                <!-- Renderizado via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-sand-200">
+            <strong>Ordem Oficial CBT/CBBT:</strong> Vitórias (V) → Confronto Direto (2 empatados) → Saldo de Games (SG) → Game Average (AVG) → Games Ganhos (GG).
+          </p>
+        </div>
+      </div>
+
+      <!-- DASHBOARD MODO 3: TORNEIO NORMAL (CHAVES + MATA-MATA) -->
+      <div id="dashboard-normal" class="hidden space-y-6">
+        <!-- Abas de Navegação: Fase de Chaves / Mata-Mata -->
+        <div class="p-1.5 rounded-2xl bg-sand-200/80 flex items-center gap-2 max-w-md">
+          <button id="tab-normal-groups" onclick="switchNormalTab('groups')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 bg-ocean-900 text-white shadow">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Fase de Chaves</span>
+          </button>
+          <button id="tab-normal-knockout" onclick="switchNormalTab('knockout')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 text-ocean-900 hover:bg-white/60">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>Mata-Mata</span>
+          </button>
+        </div>
+
+        <!-- Painel Fase de Chaves -->
+        <div id="normal-groups-panel" class="space-y-6">
+          <div id="groups-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Renderizado via JS -->
+          </div>
+
+          <div class="glass-card rounded-3xl p-5 border border-sand-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-center sm:text-left">
+              <p class="font-display font-bold text-base text-ocean-900">Concluiu os jogos das chaves?</p>
+              <p class="text-xs text-slate-500">Avance automaticamente os 2 melhores de cada chave para Oitavas, Quartas, Semi, 3º Lugar e Final.</p>
+            </div>
+            <button id="btn-sync-knockout-inline" onclick="advanceGroupsToKnockout()" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-tennis-ball to-tennis-dark hover:from-tennis-neon hover:to-tennis-ball text-ocean-950 font-extrabold text-xs sm:text-sm shadow-md transition flex items-center gap-2 shrink-0">
+              <i class="fa-solid fa-sitemap"></i>
+              <span>Gerar / Atualizar Mata-Mata</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Painel Mata-Mata -->
+        <div id="normal-knockout-panel" class="hidden space-y-6">
+          <div id="knockout-empty-notice" class="glass-card rounded-3xl p-10 border border-sand-200 text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-sand-100 text-sunset-orange flex items-center justify-center text-3xl mx-auto">
+              <i class="fa-solid fa-sitemap"></i>
+            </div>
+            <div class="max-w-md mx-auto space-y-1.5">
+              <h3 class="font-display font-extrabold text-xl text-ocean-900">Mata-Mata ainda não gerado</h3>
+              <p class="text-xs sm:text-sm text-slate-500">Registre os placares na Fase de Chaves e clique no botão abaixo para montar automaticamente as eliminatórias e disputa de 3º lugar.</p>
+            </div>
+            <button onclick="advanceGroupsToKnockout()" class="px-6 py-3 rounded-2xl bg-ocean-900 hover:bg-sunset-orange text-white font-bold text-xs sm:text-sm shadow-md transition inline-flex items-center gap-2">
+              <i class="fa-solid fa-play"></i>
+              <span>Gerar Chave Eliminatória Agora</span>
+            </button>
+          </div>
+
+          <div id="knockout-bracket-wrapper" class="hidden bracket-scroll overflow-x-auto pb-4">
+            <div id="knockout-rounds-grid" class="flex items-stretch gap-6 min-w-max">
+              <!-- Colunas de Oitavas, Quartas, Semi, Final e 3º Lugar via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="bg-ocean-950 text-slate-400 py-6 border-t border-ocean-800 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-baseball text-tennis-ball"></i>
+        <span class="font-semibold text-white">SmashBeach Pro</span>
+        <span>• Sistema de Gestão para Beach Tennis</span>
+      </div>
+      <p>Salvamento automático no navegador ativado</p>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT - LÓGICA COMPLETA DO SISTEMA DE BEACH TENNIS               -->
+  <!-- ===================================================================== -->
+  <script>
+    // =========================================================================
+    // ESTADO GLOBAL, PERSISTÊNCIA MÚLTIPLA E UTILITÁRIOS DE UI
+    // =========================================================================
+    const STORAGE_KEY = 'smashbeach_pro_state_v2';
+    const LEGACY_STORAGE_KEYS = ['arena_beach_pro_state_v2', 'arena_beach_pro_state_v1'];
+
+    let appState = {
+      selectedMode: 'rei',
+      setupList: [],
+      savedTournaments: [],
+      activeTournament: null
+    };
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getModeLabel(mode) {
+      if (mode === 'rei') return 'Rei da Praia';
+      if (mode === 'rainha') return 'Rainha da Praia';
+      return 'Torneio Normal';
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const colors = {
+        success: 'bg-ocean-900 text-white border-tennis-ball',
+        error: 'bg-rose-600 text-white border-rose-300',
+        info: 'bg-ocean-800 text-white border-ocean-sky'
+      };
+      const icons = {
+        success: 'fa-circle-check text-tennis-ball',
+        error: 'fa-circle-exclamation text-white',
+        info: 'fa-circle-info text-sky-300'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border-l-4 ${colors[type] || colors.info} text-xs sm:text-sm font-semibold transition-all duration-300`;
+      toast.innerHTML = `
+        <i class="fa-solid ${icons[type] || icons.info} text-base shrink-0"></i>
+        <span class="flex-grow">${escapeHtml(message)}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-6px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function showConfirmDialog(title, message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      const titleEl = document.getElementById('confirm-title');
+      const msgEl = document.getElementById('confirm-message');
+      const okBtn = document.getElementById('confirm-ok-btn');
+      const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+      titleEl.textContent = title;
+      msgEl.textContent = message;
+
+      const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      okBtn.onclick = () => {
+        close();
+        if (typeof onConfirm === 'function') onConfirm();
+      };
+      cancelBtn.onclick = close;
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function saveToStorage() {
+      try {
+        if (appState.activeTournament) {
+          appState.activeTournament.updatedAt = new Date().toISOString();
+          const idx = appState.savedTournaments.findIndex(item => item.id === appState.activeTournament.id);
+          if (idx >= 0) {
+            appState.savedTournaments[idx] = appState.activeTournament;
+          } else {
+            appState.savedTournaments.unshift(appState.activeTournament);
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          savedTournaments: appState.savedTournaments,
+          activeTournamentId: appState.activeTournament ? appState.activeTournament.id : null
+        }));
+      } catch (e) {
+        console.warn('Não foi possível salvar no localStorage:', e);
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.savedTournaments)) {
+            appState.savedTournaments = parsed.savedTournaments;
+            if (parsed.activeTournamentId) {
+              appState.activeTournament = appState.savedTournaments.find(t => t.id === parsed.activeTournamentId) || null;
+            }
+            return;
+          }
+        }
+
+        // Migrar eventual torneio salvo na versão anterior
+        for (const legacyKey of LEGACY_STORAGE_KEYS) {
+          const legacyRaw = localStorage.getItem(legacyKey);
+          if (legacyRaw) {
+            const legacyParsed = JSON.parse(legacyRaw);
+            if (legacyParsed && Array.isArray(legacyParsed.savedTournaments)) {
+              appState.savedTournaments = legacyParsed.savedTournaments;
+              if (legacyParsed.activeTournamentId) {
+                appState.activeTournament = appState.savedTournaments.find(t => t.id === legacyParsed.activeTournamentId) || null;
+              }
+              saveToStorage();
+              break;
+            } else if (legacyParsed && legacyParsed.activeTournament) {
+              appState.savedTournaments = [legacyParsed.activeTournament];
+              appState.activeTournament = legacyParsed.activeTournament;
+              saveToStorage();
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar dados salvos:', e);
+      }
+    }
+
+    function switchView(viewName) {
+      const views = ['home', 'setup', 'tournament'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) {
+          if (v === viewName) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+      });
+
+      const btnHome = document.getElementById('btn-home');
+      const btnReset = document.getElementById('btn-reset-header');
+      const btnSaveNow = document.getElementById('btn-save-now');
+      const badge = document.getElementById('active-tournament-badge');
+
+      if (viewName === 'home') {
+        btnHome.classList.add('hidden');
+        btnReset.classList.add('hidden');
+        btnSaveNow.classList.add('hidden');
+        badge.classList.add('hidden');
+        updateHomeResumeBanner();
+      } else if (viewName === 'setup') {
+        btnHome.classList.remove('hidden');
+        btnReset.classList.add('hidden');
+        btnSaveNow.classList.add('hidden');
+        badge.classList.add('hidden');
+      } else if (viewName === 'tournament') {
+        btnHome.classList.remove('hidden');
+        btnReset.classList.remove('hidden');
+        btnSaveNow.classList.remove('hidden');
+        badge.classList.remove('hidden');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getTournamentProgressSummary(t) {
+      let total = 0;
+      let done = 0;
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        (t.rounds || []).forEach(r => r.matches.forEach(m => {
+          total++;
+          if (m.completed) done++;
+        }));
+      } else {
+        (t.groups || []).forEach(g => g.matches.forEach(m => {
+          total++;
+          if (m.completed) done++;
+        }));
+        if (t.knockout) {
+          t.knockout.rounds.forEach(r => r.matches.forEach(m => {
+            if (!m.isBye) {
+              total++;
+              if (m.completed) done++;
+            }
+          }));
+          if (t.knockout.thirdPlaceMatch) {
+            total++;
+            if (t.knockout.thirdPlaceMatch.completed) done++;
+          }
+        }
+      }
+      return { done, total };
+    }
+
+    function updateHomeResumeBanner() {
+      const section = document.getElementById('saved-tournaments-section');
+      const listEl = document.getElementById('saved-tournaments-list');
+      const countEl = document.getElementById('saved-tournaments-count');
+      const saved = appState.savedTournaments || [];
+
+      if (saved.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      countEl.textContent = `${saved.length} ${saved.length === 1 ? 'salvo' : 'salvos'}`;
+
+      // Ordenar do mais recentemente atualizado para o mais antigo
+      const sorted = [...saved].sort((a, b) => {
+        const da = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const db = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return db - da;
+      });
+
+      listEl.innerHTML = sorted.map(t => {
+        const countLabel = t.mode === 'normal'
+          ? `${t.teams.length} duplas`
+          : `${t.players.length} atletas`;
+        const prog = getTournamentProgressSummary(t);
+        const dateRef = t.updatedAt || t.createdAt;
+        const formattedDate = dateRef
+          ? new Date(dateRef).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+          : '';
+
+        const modeIcon = t.mode === 'rei'
+          ? '<i class="fa-solid fa-crown text-tennis-ball"></i>'
+          : t.mode === 'rainha'
+            ? '<i class="fa-solid fa-chess-queen text-sunset-coral"></i>'
+            : '<i class="fa-solid fa-trophy text-tennis-ball"></i>';
+
+        return `
+          <div class="rounded-2xl bg-sand-50 hover:bg-white border border-sand-200 hover:border-ocean-sky p-4 transition shadow-sm flex flex-col justify-between gap-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-ocean-900 flex items-center justify-center text-base shrink-0">
+                  ${modeIcon}
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-display font-extrabold text-sm sm:text-base text-ocean-900 truncate" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</h3>
+                  <p class="text-[11px] font-semibold text-slate-500">${getModeLabel(t.mode)} • ${countLabel}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="promptRenameSavedTournament('${t.id}')" class="w-7 h-7 rounded-lg bg-white hover:bg-sky-50 text-slate-400 hover:text-ocean-sky border border-sand-200 flex items-center justify-center transition" title="Renomear">
+                  <i class="fa-solid fa-pen text-[11px]"></i>
+                </button>
+                <button onclick="confirmDeleteSavedTournament('${t.id}')" class="w-7 h-7 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-sand-200 flex items-center justify-center transition" title="Excluir campeonato">
+                  <i class="fa-solid fa-trash-can text-[11px]"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-sand-200/80">
+              <span class="font-bold text-ocean-900">${prog.done}/${prog.total} jogos</span>
+              ${formattedDate ? `<span>Atualizado: ${formattedDate}</span>` : ''}
+            </div>
+
+            <button onclick="openSavedTournament('${t.id}')" class="w-full py-2.5 px-4 rounded-xl bg-ocean-900 hover:bg-sunset-orange text-white font-bold text-xs transition flex items-center justify-center gap-2">
+              <span>Continuar Campeonato</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function goHome() {
+      // Garante que o campeonato atual fique salvo antes de sair para a tela inicial
+      if (appState.activeTournament) {
+        saveToStorage();
+      }
+      switchView('home');
+    }
+
+    function openSavedTournament(id) {
+      const found = appState.savedTournaments.find(t => t.id === id);
+      if (!found) return;
+      appState.activeTournament = found;
+      saveToStorage();
+      renderActiveTournament();
+      switchView('tournament');
+      showToast(`Campeonato "${found.name}" carregado!`, 'success');
+    }
+
+    function saveCurrentTournamentManually() {
+      if (!appState.activeTournament) return;
+      saveToStorage();
+      showToast(`Campeonato "${appState.activeTournament.name}" salvo com sucesso!`, 'success');
+    }
+
+    let renamingTargetId = null;
+
+    function promptRenameActiveTournament() {
+      if (!appState.activeTournament) return;
+      promptRenameSavedTournament(appState.activeTournament.id);
+    }
+
+    function promptRenameSavedTournament(id) {
+      const target = appState.savedTournaments.find(t => t.id === id) ||
+        (appState.activeTournament && appState.activeTournament.id === id ? appState.activeTournament : null);
+      if (!target) return;
+
+      renamingTargetId = id;
+      const modal = document.getElementById('rename-tournament-modal');
+      const input = document.getElementById('rename-tournament-input');
+      input.value = target.name;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+
+    function closeRenameModal() {
+      const modal = document.getElementById('rename-tournament-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      renamingTargetId = null;
+    }
+
+    function handleRenameTournamentSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('rename-tournament-input');
+      const newName = input.value.trim();
+      if (!newName || !renamingTargetId) return;
+
+      const savedItem = appState.savedTournaments.find(t => t.id === renamingTargetId);
+      if (savedItem) savedItem.name = newName;
+      if (appState.activeTournament && appState.activeTournament.id === renamingTargetId) {
+        appState.activeTournament.name = newName;
+      }
+
+      saveToStorage();
+      closeRenameModal();
+
+      if (!document.getElementById('view-tournament').classList.contains('hidden')) {
+        renderActiveTournament();
+      } else {
+        updateHomeResumeBanner();
+      }
+      showToast(`Campeonato salvo como "${newName}"!`, 'success');
+    }
+
+    function confirmDeleteCurrentTournament() {
+      if (!appState.activeTournament) return;
+      confirmDeleteSavedTournament(appState.activeTournament.id);
+    }
+
+    function confirmDeleteSavedTournament(id) {
+      const target = appState.savedTournaments.find(t => t.id === id);
+      const name = target ? target.name : 'este campeonato';
+
+      showConfirmDialog(
+        'Excluir Campeonato Salvo?',
+        `Tem certeza que deseja excluir permanentemente "${name}"? Esta ação não pode ser desfeita.`,
+        () => {
+          appState.savedTournaments = appState.savedTournaments.filter(t => t.id !== id);
+          const wasActive = appState.activeTournament && appState.activeTournament.id === id;
+          if (wasActive) {
+            appState.activeTournament = null;
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            savedTournaments: appState.savedTournaments,
+            activeTournamentId: appState.activeTournament ? appState.activeTournament.id : null
+          }));
+          showToast(`Campeonato "${name}" excluído.`, 'info');
+          if (wasActive) {
+            switchView('home');
+          } else {
+            updateHomeResumeBanner();
+          }
+        }
+      );
+    }
+
+    // =========================================================================
+    // CÁLCULOS DE RANKING E CLASSIFICAÇÃO (REGULAMENTO OFICIAL CBT / CBBT)
+    // =========================================================================
+
+    /**
+     * Aplica a ordenação oficial CBT/CBBT/FPT em grupos de empatados:
+     * 1. Vitórias (V)
+     * 2. Se 2 empatados -> Confronto Direto (se houver jogo único entre eles)
+     * 3. Se 3+ empatados -> Saldo de Games (SG) -> Game Average (AVG) -> Games Ganhos (GG)
+     *    Regra de Ouro: Se após cada critério restarem exatamente 2 empatados, volta ao Confronto Direto.
+     */
+    function applyOfficialCbtRanking(entries, matches, getParticipantsA, getParticipantsB) {
+      // Helper para verificar confronto direto entre exatamente 2 IDs
+      const resolveHeadToHead = (idA, idB) => {
+        let winsA = 0;
+        let winsB = 0;
+        matches.forEach(m => {
+          if (!m.completed || m.scoreA === null || m.scoreB === null) return;
+          const sideA = getParticipantsA(m);
+          const sideB = getParticipantsB(m);
+          const aIn1 = sideA.includes(idA) && sideB.includes(idB);
+          const aIn2 = sideB.includes(idA) && sideA.includes(idB);
+          if (aIn1) {
+            if (Number(m.scoreA) > Number(m.scoreB)) winsA++;
+            else if (Number(m.scoreB) > Number(m.scoreA)) winsB++;
+          } else if (aIn2) {
+            if (Number(m.scoreB) > Number(m.scoreA)) winsA++;
+            else if (Number(m.scoreA) > Number(m.scoreB)) winsB++;
+          }
+        });
+        if (winsA !== winsB) return winsB - winsA;
+        return 0;
+      };
+
+      // Recursivamente desempatar subgrupos com mesmo número de vitórias
+      const resolveTiedGroup = (tiedList, step = 0) => {
+        if (tiedList.length <= 1) return tiedList;
+
+        // Caso base de 2 empatados: tentar Confronto Direto primeiro
+        if (tiedList.length === 2) {
+          const h2h = resolveHeadToHead(tiedList[0].id, tiedList[1].id);
+          if (h2h !== 0) {
+            return h2h < 0 ? [tiedList[0], tiedList[1]] : [tiedList[1], tiedList[0]];
+          }
+          // Se nunca se enfrentaram (ex: rodízio parcial Rei/Rainha), segue para SG -> AVG -> GG
+        }
+
+        // Critérios progressivos para 3+ empatados (ou 2 sem confronto direto)
+        const criteria = [
+          (x) => x.gameDiff,     // 1º Saldo de Games (GG - GP)
+          (x) => x.gameAverage,  // 2º Game Average (GG / (GG + GP))
+          (x) => x.gamesWon      // 3º Games Ganhos
+        ];
+
+        if (step >= criteria.length) {
+          return [...tiedList].sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const metricFn = criteria[step];
+        const sorted = [...tiedList].sort((a, b) => metricFn(b) - metricFn(a));
+
+        // Agrupar novamente por valores iguais no critério atual (tolerância float para average)
+        const buckets = [];
+        sorted.forEach(item => {
+          const lastBucket = buckets[buckets.length - 1];
+          if (lastBucket && Math.abs(metricFn(lastBucket[0]) - metricFn(item)) < 1e-6) {
+            lastBucket.push(item);
+          } else {
+            buckets.push([item]);
+          }
+        });
+
+        // Regra de Ouro CBT: se o desempate reduziu para 2 empatados, o próximo passo volta ao confronto direto!
+        return buckets.flatMap(bucket => resolveTiedGroup(bucket, step + 1));
+      };
+
+      // Agrupar inicialmente por Vitórias (critério primário)
+      const byWins = [...entries].sort((a, b) => b.wins - a.wins);
+      const winBuckets = [];
+      byWins.forEach(item => {
+        const lastBucket = winBuckets[winBuckets.length - 1];
+        if (lastBucket && lastBucket[0].wins === item.wins) {
+          lastBucket.push(item);
+        } else {
+          winBuckets.push([item]);
+        }
+      });
+
+      return winBuckets.flatMap(bucket => resolveTiedGroup(bucket, 0));
+    }
+
+    function computeKingQueenStandings(tournament) {
+      const stats = {};
+      tournament.players.forEach(p => {
+        stats[p.id] = {
+          id: p.id,
+          name: p.name,
+          played: 0,
+          wins: 0,
+          losses: 0,
+          gamesWon: 0,
+          gamesLost: 0,
+          gameDiff: 0,
+          gameAverage: 0
+        };
+      });
+
+      const allMatches = [];
+      tournament.rounds.forEach(round => {
+        round.matches.forEach(m => {
+          allMatches.push(m);
+          if (m.completed && m.scoreA !== null && m.scoreB !== null) {
+            const sA = Number(m.scoreA);
+            const sB = Number(m.scoreB);
+            const aWon = sA > sB;
+            const bWon = sB > sA;
+
+            m.teamA.forEach(pid => {
+              if (!stats[pid]) return;
+              stats[pid].played++;
+              stats[pid].gamesWon += sA;
+              stats[pid].gamesLost += sB;
+              if (aWon) stats[pid].wins++;
+              else if (bWon) stats[pid].losses++;
+            });
+
+            m.teamB.forEach(pid => {
+              if (!stats[pid]) return;
+              stats[pid].played++;
+              stats[pid].gamesWon += sB;
+              stats[pid].gamesLost += sA;
+              if (bWon) stats[pid].wins++;
+              else if (aWon) stats[pid].losses++;
+            });
+          }
+        });
+      });
+
+      const computed = Object.values(stats).map(s => {
+        const totalGames = s.gamesWon + s.gamesLost;
+        return {
+          ...s,
+          gameDiff: s.gamesWon - s.gamesLost,
+          gameAverage: totalGames > 0 ? s.gamesWon / totalGames : 0
+        };
+      });
+
+      return applyOfficialCbtRanking(
+        computed,
+        allMatches,
+        (m) => m.teamA,
+        (m) => m.teamB
+      );
+    }
+
+    function computeGroupStandings(group, teams) {
+      const teamMap = Object.fromEntries(teams.map(t => [t.id, t]));
+      const stats = {};
+
+      group.teamIds.forEach(tid => {
+        stats[tid] = {
+          id: tid,
+          teamId: tid,
+          name: teamMap[tid] ? teamMap[tid].name : 'Dupla',
+          played: 0,
+          wins: 0,
+          losses: 0,
+          gamesWon: 0,
+          gamesLost: 0,
+          gameDiff: 0,
+          gameAverage: 0
+        };
+      });
+
+      group.matches.forEach(m => {
+        if (m.completed && m.scoreA !== null && m.scoreB !== null) {
+          const sA = Number(m.scoreA);
+          const sB = Number(m.scoreB);
+          const stA = stats[m.teamAId];
+          const stB = stats[m.teamBId];
+          if (!stA || !stB) return;
+
+          stA.played++;
+          stB.played++;
+          stA.gamesWon += sA;
+          stA.gamesLost += sB;
+          stB.gamesWon += sB;
+          stB.gamesLost += sA;
+
+          if (sA > sB) {
+            stA.wins++;
+            stB.losses++;
+          } else if (sB > sA) {
+            stB.wins++;
+            stA.losses++;
+          }
+        }
+      });
+
+      const computed = Object.values(stats).map(s => {
+        const totalGames = s.gamesWon + s.gamesLost;
+        return {
+          ...s,
+          gameDiff: s.gamesWon - s.gamesLost,
+          gameAverage: totalGames > 0 ? s.gamesWon / totalGames : 0
+        };
+      });
+
+      return applyOfficialCbtRanking(
+        computed,
+        group.matches,
+        (m) => [m.teamAId],
+        (m) => [m.teamBId]
+      );
+    }
+
+    // =========================================================================
+    // CONFIGURAÇÃO DO TORNEIO E CADASTRO DE PARTICIPANTES
+    // =========================================================================
+    function selectTournamentMode(mode) {
+      appState.selectedMode = mode;
+      appState.setupList = [];
+
+      const titleEl = document.getElementById('setup-title');
+      const subEl = document.getElementById('setup-subtitle');
+      const nameInput = document.getElementById('input-tournament-name');
+      const normalOpts = document.getElementById('normal-tournament-options');
+      const kqOpts = document.getElementById('king-queen-options');
+      const formPlayer = document.getElementById('form-add-player');
+      const formTeam = document.getElementById('form-add-team');
+      const addHeading = document.getElementById('add-participant-heading');
+      const listTitle = document.getElementById('list-participants-title');
+
+      if (mode === 'rei') {
+        titleEl.textContent = 'Configurar Rei da Praia';
+        subEl.textContent = 'Cadastre os jogadores. As duplas serão sorteadas a cada rodada!';
+        nameInput.value = 'Rei da Praia • SmashBeach Open';
+        normalOpts.classList.add('hidden');
+        kqOpts.classList.remove('hidden');
+        formPlayer.classList.remove('hidden');
+        formTeam.classList.add('hidden');
+        addHeading.innerHTML = '<i class="fa-solid fa-user-plus text-ocean-sky"></i> Adicionar Jogador';
+        listTitle.textContent = 'Jogadores Inscritos';
+      } else if (mode === 'rainha') {
+        titleEl.textContent = 'Configurar Rainha da Praia';
+        subEl.textContent = 'Cadastre as jogadoras. Todas jogam com e contra todas!';
+        nameInput.value = 'Rainha da Praia • SmashBeach Cup';
+        normalOpts.classList.add('hidden');
+        kqOpts.classList.remove('hidden');
+        formPlayer.classList.remove('hidden');
+        formTeam.classList.add('hidden');
+        addHeading.innerHTML = '<i class="fa-solid fa-user-plus text-sunset-coral"></i> Adicionar Jogadora';
+        listTitle.textContent = 'Jogadoras Inscritas';
+      } else {
+        titleEl.textContent = 'Configurar Torneio Normal';
+        subEl.textContent = 'Cadastre as duplas fixas para divisão de chaves e mata-mata.';
+        nameInput.value = 'SmashBeach Open • Duplas Fixas';
+        normalOpts.classList.remove('hidden');
+        kqOpts.classList.add('hidden');
+        formPlayer.classList.add('hidden');
+        formTeam.classList.remove('hidden');
+        addHeading.innerHTML = '<i class="fa-solid fa-user-group text-tennis-dark"></i> Adicionar Dupla Fixa';
+        listTitle.textContent = 'Duplas Inscritas';
+      }
+
+      renderSetupList();
+      switchView('setup');
+    }
+
+    function handleAddPlayer(e) {
+      e.preventDefault();
+      const input = document.getElementById('input-player-name');
+      const name = input.value.trim();
+      if (!name) {
+        showToast('Digite o nome do(a) atleta.', 'error');
+        return;
+      }
+      if (appState.setupList.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+        showToast('Este atleta já está na lista.', 'error');
+        return;
+      }
+      appState.setupList.push({
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name
+      });
+      input.value = '';
+      input.focus();
+      renderSetupList();
+    }
+
+    function handleAddTeam(e) {
+      e.preventDefault();
+      const p1Input = document.getElementById('input-team-p1');
+      const p2Input = document.getElementById('input-team-p2');
+      const p1 = p1Input.value.trim();
+      const p2 = p2Input.value.trim();
+
+      if (!p1 || !p2) {
+        showToast('Preencha o nome dos dois atletas da dupla.', 'error');
+        return;
+      }
+
+      const teamName = `${p1} / ${p2}`;
+      appState.setupList.push({
+        id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: teamName,
+        p1,
+        p2
+      });
+      p1Input.value = '';
+      p2Input.value = '';
+      p1Input.focus();
+      renderSetupList();
+    }
+
+    function removeSetupParticipant(id) {
+      appState.setupList = appState.setupList.filter(item => item.id !== id);
+      renderSetupList();
+    }
+
+    function clearParticipantsList() {
+      appState.setupList = [];
+      renderSetupList();
+    }
+
+    function fillSampleParticipants() {
+      const mode = appState.selectedMode;
+      appState.setupList = [];
+
+      if (mode === 'rei') {
+        const men = ['Gabriel Costa', 'Lucas Ferreira', 'Rafael Oliveira', 'Matheus Santos', 'Bruno Almeida', 'Thiago Rocha', 'Felipe Lima', 'Rodrigo Alves'];
+        men.forEach((name, idx) => {
+          appState.setupList.push({ id: 'p_sample_' + idx, name });
+        });
+      } else if (mode === 'rainha') {
+        const women = ['Camila Rocha', 'Juliana Martins', 'Mariana Silva', 'Beatriz Souza', 'Fernanda Lima', 'Larissa Alves', 'Amanda Costa', 'Carolina Dias'];
+        women.forEach((name, idx) => {
+          appState.setupList.push({ id: 'p_sample_' + idx, name });
+        });
+      } else {
+        const sampleTeams = [
+          ['Lucas', 'Gabriel'],
+          ['Rafael', 'Bruno'],
+          ['Camila', 'Juliana'],
+          ['Matheus', 'Thiago'],
+          ['Mariana', 'Beatriz'],
+          ['Felipe', 'Rodrigo'],
+          ['Fernanda', 'Larissa'],
+          ['Pedro', 'André'],
+          ['Amanda', 'Carolina'],
+          ['Diego', 'Vitor'],
+          ['Letícia', 'Patrícia'],
+          ['Gustavo', 'Henrique']
+        ];
+        sampleTeams.forEach(([p1, p2], idx) => {
+          appState.setupList.push({
+            id: 't_sample_' + idx,
+            name: `${p1} / ${p2}`,
+            p1,
+            p2
+          });
+        });
+      }
+      renderSetupList();
+      showToast('Participantes de exemplo preenchidos!', 'success');
+    }
+
+    function renderSetupList() {
+      const container = document.getElementById('participants-list-container');
+      const emptyState = document.getElementById('participants-empty-state');
+      const badge = document.getElementById('participants-count-badge');
+
+      badge.textContent = appState.setupList.length;
+
+      if (appState.setupList.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = appState.setupList.map((item, index) => `
+        <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-sand-50 border border-sand-200 hover:border-sand-300 transition">
+          <div class="flex items-center gap-2.5 min-w-0 flex-grow">
+            <span class="w-6 h-6 rounded-lg bg-ocean-900 text-tennis-ball text-xs font-bold flex items-center justify-center shrink-0">
+              ${index + 1}
+            </span>
+            <span class="text-sm font-semibold text-ocean-900 truncate">${escapeHtml(item.name)}</span>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="editSetupParticipant('${item.id}')" class="text-slate-400 hover:text-ocean-sky p-1.5 transition" title="Editar nome">
+              <i class="fa-solid fa-pen text-xs"></i>
+            </button>
+            <button onclick="removeSetupParticipant('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition" title="Remover">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function editSetupParticipant(id) {
+      const item = appState.setupList.find(p => p.id === id);
+      if (!item) return;
+
+      const container = document.getElementById('participants-list-container');
+      const idx = appState.setupList.findIndex(p => p.id === id);
+      const card = container.children[idx];
+      if (!card) return;
+
+      if (appState.selectedMode === 'normal') {
+        card.innerHTML = `
+          <div class="flex flex-col gap-1.5 w-full">
+            <div class="flex gap-1.5">
+              <input id="setup_edit_p1_${id}" type="text" value="${escapeHtml(item.p1)}" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-sand-300 text-xs font-semibold bg-white">
+              <input id="setup_edit_p2_${id}" type="text" value="${escapeHtml(item.p2)}" class="w-1/2 px-2.5 py-1.5 rounded-lg border border-sand-300 text-xs font-semibold bg-white">
+            </div>
+            <div class="flex justify-end gap-1.5">
+              <button onclick="renderSetupList()" class="px-2.5 py-1 rounded-lg bg-slate-200 text-slate-700 text-xs font-bold">Cancelar</button>
+              <button onclick="saveSetupEdit('${id}')" class="px-2.5 py-1 rounded-lg bg-ocean-900 text-white text-xs font-bold">Salvar</button>
+            </div>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="flex items-center gap-1.5 w-full">
+            <input id="setup_edit_name_${id}" type="text" value="${escapeHtml(item.name)}" class="flex-grow px-2.5 py-1.5 rounded-lg border border-sand-300 text-xs font-semibold bg-white">
+            <button onclick="saveSetupEdit('${id}')" class="px-2.5 py-1.5 rounded-lg bg-ocean-900 text-white text-xs font-bold">OK</button>
+            <button onclick="renderSetupList()" class="px-2 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-xs font-bold">X</button>
+          </div>
+        `;
+      }
+    }
+
+    function saveSetupEdit(id) {
+      const item = appState.setupList.find(p => p.id === id);
+      if (!item) return;
+
+      if (appState.selectedMode === 'normal') {
+        const p1 = document.getElementById(`setup_edit_p1_${id}`).value.trim();
+        const p2 = document.getElementById(`setup_edit_p2_${id}`).value.trim();
+        if (!p1 || !p2) {
+          showToast('Preencha os dois nomes da dupla.', 'error');
+          return;
+        }
+        item.p1 = p1;
+        item.p2 = p2;
+        item.name = `${p1} / ${p2}`;
+      } else {
+        const name = document.getElementById(`setup_edit_name_${id}`).value.trim();
+        if (!name) {
+          showToast('O nome não pode ficar vazio.', 'error');
+          return;
+        }
+        item.name = name;
+      }
+      renderSetupList();
+      showToast('Cadastro atualizado!', 'success');
+    }
+
+    // =========================================================================
+    // GERENCIAMENTO DE PARTICIPANTES / DUPLAS PÓS-SORTEIO (EM ANDAMENTO)
+    // =========================================================================
+    let pmEditingId = null;
+
+    function openParticipantsManager() {
+      const t = appState.activeTournament;
+      if (!t) return;
+
+      pmEditingId = null;
+      const modal = document.getElementById('participants-manager-modal');
+      const title = document.getElementById('pm-modal-title');
+      const subtitle = document.getElementById('pm-modal-subtitle');
+      const formPlayer = document.getElementById('pm-form-add-player');
+      const formTeam = document.getElementById('pm-form-add-team');
+      const btnReshuffle = document.getElementById('pm-btn-reshuffle-pending');
+      const btnRebalance = document.getElementById('pm-btn-rebalance-groups');
+
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        title.textContent = t.mode === 'rei' ? 'Gerenciar Jogadores (Rei da Praia)' : 'Gerenciar Jogadoras (Rainha da Praia)';
+        subtitle.textContent = 'Insira novos atletas, substitua nomes ou remova participantes. Jogos concluídos são preservados.';
+        formPlayer.classList.remove('hidden');
+        formTeam.classList.add('hidden');
+        btnReshuffle.classList.remove('hidden');
+        btnRebalance.classList.add('hidden');
+      } else {
+        title.textContent = 'Gerenciar Duplas (Torneio Normal)';
+        subtitle.textContent = 'Divisão igualitária automática com no máximo 4 duplas por chave.';
+        formPlayer.classList.add('hidden');
+        formTeam.classList.remove('hidden');
+        btnReshuffle.classList.add('hidden');
+
+        // Popular seletor de chave destino (apenas chaves com menos de 4 duplas ou auto)
+        const groupSelect = document.getElementById('pm-select-target-group');
+        if (t.format === 'groups_knockout' && t.groups && t.groups.length > 0) {
+          btnRebalance.classList.remove('hidden');
+          groupSelect.classList.remove('hidden');
+          updatePmGroupSelectOptions(t);
+        } else {
+          btnRebalance.classList.add('hidden');
+          groupSelect.classList.add('hidden');
+        }
+      }
+
+      renderParticipantsManagerList();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function updatePmGroupSelectOptions(t) {
+      const groupSelect = document.getElementById('pm-select-target-group');
+      if (!groupSelect || !t.groups) return;
+      const availableGroups = t.groups.filter(g => g.teamIds.length < 4);
+      groupSelect.innerHTML = `<option value="auto">Distribuição Igualitária Automática (Máx. 4)</option>` +
+        availableGroups.map(g => `<option value="${g.id}">${escapeHtml(g.name)} (${g.teamIds.length}/4 duplas)</option>`).join('');
+    }
+
+    function closeParticipantsManager() {
+      const modal = document.getElementById('participants-manager-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      pmEditingId = null;
+    }
+
+    function renderParticipantsManagerList() {
+      const t = appState.activeTournament;
+      if (!t) return;
+
+      const listEl = document.getElementById('pm-participants-list');
+      const countEl = document.getElementById('pm-list-count');
+      const labelEl = document.getElementById('pm-list-label');
+
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        labelEl.textContent = t.mode === 'rei' ? 'Jogadores no Torneio' : 'Jogadoras no Torneio';
+        countEl.textContent = t.players.length;
+
+        listEl.innerHTML = t.players.map((p, idx) => {
+          const isEditing = pmEditingId === p.id;
+          if (isEditing) {
+            return `
+              <div class="flex items-center gap-2 p-3 rounded-2xl bg-sky-50 border-2 border-ocean-sky">
+                <input id="pm-edit-input-${p.id}" type="text" value="${escapeHtml(p.name)}" class="flex-grow px-3 py-1.5 rounded-xl border border-sand-300 bg-white text-sm font-bold text-ocean-900 focus:outline-none">
+                <button onclick="savePostDrawPlayerEdit('${p.id}')" class="px-3 py-1.5 rounded-xl bg-ocean-900 text-white text-xs font-bold hover:bg-ocean-800">Salvar</button>
+                <button onclick="cancelPostDrawEdit()" class="px-2.5 py-1.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold">Cancelar</button>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="flex items-center justify-between gap-2 p-3 rounded-2xl bg-sand-50 border border-sand-200 hover:border-sand-300 transition">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-7 h-7 rounded-xl bg-ocean-900 text-tennis-ball text-xs font-extrabold flex items-center justify-center shrink-0">${idx + 1}</span>
+                <span class="text-sm font-bold text-ocean-900 truncate">${escapeHtml(p.name)}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="startPostDrawEdit('${p.id}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-ocean-sky border border-sand-200 text-xs font-bold transition flex items-center gap-1" title="Editar ou Substituir Atleta">
+                  <i class="fa-solid fa-pen"></i><span class="hidden sm:inline">Editar</span>
+                </button>
+                <button onclick="confirmPostDrawDeletePlayer('${p.id}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-sand-200 text-xs font-bold transition flex items-center gap-1" title="Remover do Torneio">
+                  <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Remover</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        labelEl.textContent = 'Duplas Inscritas no Torneio';
+        countEl.textContent = t.teams.length;
+
+        // Mapear qual chave cada dupla pertence
+        const teamGroupMap = {};
+        if (t.groups) {
+          t.groups.forEach(g => {
+            g.teamIds.forEach(tid => { teamGroupMap[tid] = g.name; });
+          });
+        }
+
+        listEl.innerHTML = t.teams.map((tm, idx) => {
+          const isEditing = pmEditingId === tm.id;
+          const grpBadge = teamGroupMap[tm.id]
+            ? `<span class="px-2 py-0.5 rounded-md bg-sunset-light text-sunset-deep text-[10px] font-extrabold uppercase">${escapeHtml(teamGroupMap[tm.id])}</span>`
+            : `<span class="px-2 py-0.5 rounded-md bg-lime-100 text-lime-800 text-[10px] font-extrabold uppercase">Mata-Mata</span>`;
+
+          if (isEditing) {
+            return `
+              <div class="p-3 rounded-2xl bg-sky-50 border-2 border-ocean-sky space-y-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input id="pm-edit-t1-${tm.id}" type="text" value="${escapeHtml(tm.p1)}" placeholder="Atleta 1" class="px-3 py-1.5 rounded-xl border border-sand-300 bg-white text-xs sm:text-sm font-bold">
+                  <input id="pm-edit-t2-${tm.id}" type="text" value="${escapeHtml(tm.p2)}" placeholder="Atleta 2" class="px-3 py-1.5 rounded-xl border border-sand-300 bg-white text-xs sm:text-sm font-bold">
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button onclick="cancelPostDrawEdit()" class="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold">Cancelar</button>
+                  <button onclick="savePostDrawTeamEdit('${tm.id}')" class="px-3.5 py-1.5 rounded-xl bg-ocean-900 text-white text-xs font-bold">Salvar Dupla</button>
+                </div>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="flex items-center justify-between gap-2 p-3 rounded-2xl bg-sand-50 border border-sand-200 hover:border-sand-300 transition">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-7 h-7 rounded-xl bg-ocean-900 text-tennis-ball text-xs font-extrabold flex items-center justify-center shrink-0">${idx + 1}</span>
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-ocean-900 truncate">${escapeHtml(tm.name)}</p>
+                  <div class="mt-0.5">${grpBadge}</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="startPostDrawEdit('${tm.id}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-ocean-sky border border-sand-200 text-xs font-bold transition flex items-center gap-1" title="Editar ou Substituir Dupla">
+                  <i class="fa-solid fa-pen"></i><span class="hidden sm:inline">Editar</span>
+                </button>
+                <button onclick="confirmPostDrawDeleteTeam('${tm.id}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-sand-200 text-xs font-bold transition flex items-center gap-1" title="Remover Dupla">
+                  <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Remover</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function startPostDrawEdit(id) {
+      pmEditingId = id;
+      renderParticipantsManagerList();
+    }
+
+    function cancelPostDrawEdit() {
+      pmEditingId = null;
+      renderParticipantsManagerList();
+    }
+
+    function savePostDrawPlayerEdit(playerId) {
+      const t = appState.activeTournament;
+      const input = document.getElementById(`pm-edit-input-${playerId}`);
+      if (!t || !input) return;
+
+      const newName = input.value.trim();
+      if (!newName) {
+        showToast('O nome do(a) atleta não pode ficar vazio.', 'error');
+        return;
+      }
+
+      const player = t.players.find(p => p.id === playerId);
+      if (player) {
+        player.name = newName;
+      }
+      pmEditingId = null;
+      saveToStorage();
+      renderParticipantsManagerList();
+      renderActiveTournament();
+      showToast('Nome atualizado em todas as rodadas e ranking!', 'success');
+    }
+
+    function savePostDrawTeamEdit(teamId) {
+      const t = appState.activeTournament;
+      const p1El = document.getElementById(`pm-edit-t1-${teamId}`);
+      const p2El = document.getElementById(`pm-edit-t2-${teamId}`);
+      if (!t || !p1El || !p2El) return;
+
+      const p1 = p1El.value.trim();
+      const p2 = p2El.value.trim();
+      if (!p1 || !p2) {
+        showToast('Preencha o nome dos dois atletas da dupla.', 'error');
+        return;
+      }
+
+      const team = t.teams.find(tm => tm.id === teamId);
+      if (team) {
+        team.p1 = p1;
+        team.p2 = p2;
+        team.name = `${p1} / ${p2}`;
+      }
+      pmEditingId = null;
+      saveToStorage();
+      renderParticipantsManagerList();
+      renderActiveTournament();
+      showToast('Dupla atualizada nas chaves e mata-mata!', 'success');
+    }
+
+    function handlePostDrawAddPlayer(e) {
+      e.preventDefault();
+      const t = appState.activeTournament;
+      if (!t || (t.mode !== 'rei' && t.mode !== 'rainha')) return;
+
+      const input = document.getElementById('pm-input-player-name');
+      const name = input.value.trim();
+      if (!name) {
+        showToast('Digite o nome do(a) atleta.', 'error');
+        return;
+      }
+      if (t.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        showToast('Este(a) atleta já está no torneio.', 'error');
+        return;
+      }
+
+      t.players.push({
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name
+      });
+      input.value = '';
+
+      rebuildPendingKingQueenRounds(t);
+      saveToStorage();
+      renderParticipantsManagerList();
+      renderActiveTournament();
+      showToast(`${name} inserido(a) e rodadas futuras recalculadas!`, 'success');
+    }
+
+    function confirmPostDrawDeletePlayer(playerId) {
+      const t = appState.activeTournament;
+      if (!t) return;
+      const player = t.players.find(p => p.id === playerId);
+      if (!player) return;
+
+      if (t.players.length <= 4) {
+        showToast('O torneio Rei/Rainha precisa de pelo menos 4 atletas.', 'error');
+        return;
+      }
+
+      showConfirmDialog(
+        `Remover ${player.name}?`,
+        `O(a) atleta "${player.name}" será removido(a) do ranking e as rodadas futuras pendentes serão recalculadas com o elenco restante.`,
+        () => {
+          t.players = t.players.filter(p => p.id !== playerId);
+          t.rounds.forEach(round => {
+            round.resting = round.resting.filter(id => id !== playerId);
+          });
+          rebuildPendingKingQueenRounds(t);
+          saveToStorage();
+          renderParticipantsManagerList();
+          renderActiveTournament();
+          showToast(`${player.name} removido(a) do torneio.`, 'info');
+        }
+      );
+    }
+
+    function rebuildPendingKingQueenRounds(t) {
+      if (!t || (t.mode !== 'rei' && t.mode !== 'rainha')) return;
+
+      const validIds = new Set(t.players.map(p => p.id));
+      const completedRounds = [];
+
+      t.rounds.forEach(round => {
+        const validCompletedMatches = round.matches.filter(m =>
+          m.completed &&
+          m.teamA.every(id => validIds.has(id)) &&
+          m.teamB.every(id => validIds.has(id))
+        );
+        if (validCompletedMatches.length > 0) {
+          completedRounds.push({
+            ...round,
+            matches: validCompletedMatches,
+            resting: round.resting.filter(id => validIds.has(id))
+          });
+        }
+      });
+
+      const freshSchedule = generateKingQueenSchedule(t.players);
+      const remainingNeeded = Math.max(1, freshSchedule.length - completedRounds.length);
+      const nextRounds = freshSchedule.slice(0, remainingNeeded);
+
+      t.rounds = [...completedRounds, ...nextRounds].map((r, idx) => ({
+        ...r,
+        roundNumber: idx + 1
+      }));
+    }
+
+    /**
+     * Rebalanceia todas as duplas do torneio em Math.ceil(total / 4) chaves iguais
+     * (máximo de 4 duplas por chave), preservando placares já concluídos entre duplas
+     * que permanecem na mesma chave e priorizando manter juntas duplas que já jogaram.
+     */
+    function rebalanceNormalGroups(t, preserveOrder = true) {
+      if (!t || t.format !== 'groups_knockout') return;
+
+      const totalTeams = t.teams.length;
+      if (totalTeams === 0) {
+        t.groups = [];
+        return;
+      }
+
+      // Número ideal de chaves para que nenhuma ultrapasse 4 duplas
+      const targetNumGroups = Math.max(1, Math.ceil(totalTeams / 4));
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+      // Salvar todos os placares já concluídos indexados pelo par ordenado de IDs
+      const completedMatchMap = {};
+      const teamsWithCompletedMatches = new Set();
+
+      if (t.groups) {
+        t.groups.forEach(grp => {
+          grp.matches.forEach(m => {
+            if (m.completed && m.scoreA !== null && m.scoreB !== null) {
+              const pairKey = [m.teamAId, m.teamBId].sort().join('__');
+              completedMatchMap[pairKey] = {
+                teamAId: m.teamAId,
+                teamBId: m.teamBId,
+                scoreA: m.scoreA,
+                scoreB: m.scoreB
+              };
+              teamsWithCompletedMatches.add(m.teamAId);
+              teamsWithCompletedMatches.add(m.teamBId);
+            }
+          });
+        });
+      }
+
+      // Criar as novas chaves vazias (Chave A, Chave B, ...)
+      const newGroups = [];
+      for (let i = 0; i < targetNumGroups; i++) {
+        newGroups.push({
+          id: `grp_${i}`,
+          name: `Chave ${letters[i] || (i + 1)}`,
+          teamIds: [],
+          matches: []
+        });
+      }
+
+      // Calcular capacidade alvo igualitária de cada chave (ex: 5 -> [3, 2], 7 -> [4, 3], 9 -> [3, 3, 3])
+      const baseSize = Math.floor(totalTeams / targetNumGroups);
+      const remainder = totalTeams % targetNumGroups;
+      const targetSizes = newGroups.map((_, idx) => baseSize + (idx < remainder ? 1 : 0));
+
+      const validTeamIds = new Set(t.teams.map(tm => tm.id));
+      const assignedIds = new Set();
+
+      if (preserveOrder && t.groups && t.groups.length > 0) {
+        // 1º Passo: Manter duplas existentes em suas chaves originais respeitando o limite targetSizes[gIdx],
+        // priorizando duplas que já possuem jogos concluídos na chave para preservar resultados
+        t.groups.forEach((oldGrp, gIdx) => {
+          if (gIdx >= targetNumGroups) return;
+          const existingInGrp = oldGrp.teamIds.filter(id => validTeamIds.has(id));
+          existingInGrp.sort((a, b) => {
+            const aPlayed = teamsWithCompletedMatches.has(a) ? 0 : 1;
+            const bPlayed = teamsWithCompletedMatches.has(b) ? 0 : 1;
+            return aPlayed - bPlayed;
+          });
+
+          existingInGrp.forEach(tid => {
+            if (newGroups[gIdx].teamIds.length < targetSizes[gIdx] && !assignedIds.has(tid)) {
+              newGroups[gIdx].teamIds.push(tid);
+              assignedIds.add(tid);
+            }
+          });
+        });
+      }
+
+      // 2º Passo: Distribuir as duplas restantes (novas ou excedentes de chaves que tinham > targetSize)
+      // sempre preenchendo as chaves que ainda não atingiram seu targetSize igualitário
+      const remainingTeams = t.teams.filter(tm => !assignedIds.has(tm.id));
+      if (!preserveOrder) {
+        remainingTeams.sort(() => Math.random() - 0.5);
+      }
+
+      remainingTeams.forEach(tm => {
+        // Encontrar chave com menor número de duplas que ainda tenha vaga abaixo de targetSizes[idx]
+        let bestIdx = 0;
+        let minCount = Infinity;
+        for (let i = 0; i < targetNumGroups; i++) {
+          if (newGroups[i].teamIds.length < targetSizes[i] && newGroups[i].teamIds.length < minCount) {
+            minCount = newGroups[i].teamIds.length;
+            bestIdx = i;
+          }
+        }
+        newGroups[bestIdx].teamIds.push(tm.id);
+        assignedIds.add(tm.id);
+      });
+
+      // 3º Passo: Gerar todos os confrontos dentro de cada chave restaurando placares já concluídos
+      newGroups.forEach(grp => {
+        const ids = grp.teamIds;
+        let matchIdx = 1;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const idA = ids[i];
+            const idB = ids[j];
+            const pairKey = [idA, idB].sort().join('__');
+            const saved = completedMatchMap[pairKey];
+
+            if (saved) {
+              grp.matches.push({
+                id: `${grp.id}_m_${matchIdx++}`,
+                groupId: grp.id,
+                teamAId: saved.teamAId,
+                teamBId: saved.teamBId,
+                scoreA: saved.scoreA,
+                scoreB: saved.scoreB,
+                completed: true
+              });
+            } else {
+              grp.matches.push({
+                id: `${grp.id}_m_${matchIdx++}`,
+                groupId: grp.id,
+                teamAId: idA,
+                teamBId: idB,
+                scoreA: null,
+                scoreB: null,
+                completed: false
+              });
+            }
+          }
+        }
+      });
+
+      t.groups = newGroups;
+    }
+
+    function promptRebalanceGroups() {
+      const t = appState.activeTournament;
+      if (!t || t.mode !== 'normal' || t.format !== 'groups_knockout') return;
+
+      const idealCount = Math.max(1, Math.ceil(t.teams.length / 4));
+      showConfirmDialog(
+        'Rebalancear Chaves Igualitariamente?',
+        `As ${t.teams.length} duplas serão divididas igualmente em ${idealCount} chave(s) com no máximo 4 duplas cada, preservando os placares já salvos entre duplas na mesma chave.`,
+        () => {
+          rebalanceNormalGroups(t, true);
+          saveToStorage();
+          updatePmGroupSelectOptions(t);
+          renderParticipantsManagerList();
+          renderActiveTournament();
+          showToast(`Chaves rebalanceadas igualitariamente (${idealCount} chave(s), máx. 4 duplas)!`, 'success');
+        }
+      );
+    }
+
+    function handlePostDrawAddTeam(e) {
+      e.preventDefault();
+      const t = appState.activeTournament;
+      if (!t || t.mode !== 'normal') return;
+
+      const p1El = document.getElementById('pm-input-team-p1');
+      const p2El = document.getElementById('pm-input-team-p2');
+      const p1 = p1El.value.trim();
+      const p2 = p2El.value.trim();
+
+      if (!p1 || !p2) {
+        showToast('Preencha o nome dos dois atletas da dupla.', 'error');
+        return;
+      }
+
+      const newTeam = {
+        id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: `${p1} / ${p2}`,
+        p1,
+        p2
+      };
+      t.teams.push(newTeam);
+      p1El.value = '';
+      p2El.value = '';
+
+      if (t.format === 'groups_knockout' && t.groups) {
+        const selectedGroupId = document.getElementById('pm-select-target-group').value;
+        const neededGroups = Math.max(1, Math.ceil(t.teams.length / 4));
+        const allGroupsFull = t.groups.every(g => g.teamIds.length >= 4);
+
+        // Se o usuário escolheu explicitamente uma chave que ainda tem < 4 duplas e não exige criar nova chave
+        const manualGroup = selectedGroupId !== 'auto'
+          ? t.groups.find(g => g.id === selectedGroupId && g.teamIds.length < 4)
+          : null;
+
+        if (manualGroup && t.groups.length === neededGroups) {
+          const existingIds = [...manualGroup.teamIds];
+          manualGroup.teamIds.push(newTeam.id);
+          existingIds.forEach((oppId, idx) => {
+            manualGroup.matches.push({
+              id: `${manualGroup.id}_m_ext_${Date.now()}_${idx}`,
+              groupId: manualGroup.id,
+              teamAId: oppId,
+              teamBId: newTeam.id,
+              scoreA: null,
+              scoreB: null,
+              completed: false
+            });
+          });
+          showToast(`Dupla ${newTeam.name} inserida na ${manualGroup.name} (${manualGroup.teamIds.length}/4 duplas)!`, 'success');
+        } else {
+          // Dividir igualitariamente em Math.ceil(total / 4) chaves (criando nova chave automaticamente se necessário)
+          rebalanceNormalGroups(t, true);
+          const assignedGrp = t.groups.find(g => g.teamIds.includes(newTeam.id));
+          const distSummary = t.groups.map(g => `${g.name}: ${g.teamIds.length}`).join(' • ');
+          showToast(
+            allGroupsFull
+              ? `Nova chave criada! ${newTeam.name} alocada na ${assignedGrp.name} (${distSummary}).`
+              : `Dupla ${newTeam.name} alocada na ${assignedGrp.name} (${distSummary}).`,
+            'success'
+          );
+        }
+
+        updatePmGroupSelectOptions(t);
+      } else {
+        // Caso seja mata-mata direto sem grupos
+        const anyKoDone = t.knockout && t.knockout.rounds.some(r => r.matches.some(m => m.completed && !m.isBye));
+        if (!anyKoDone) {
+          const shuffledIds = [...t.teams].sort(() => Math.random() - 0.5).map(tm => tm.id);
+          t.knockout = buildKnockoutBracket(shuffledIds);
+          showToast(`Dupla ${newTeam.name} inserida e chave eliminatória atualizada!`, 'success');
+        } else {
+          const firstRound = t.knockout.rounds[0];
+          const byeMatch = firstRound.matches.find(m => m.isBye);
+          if (byeMatch) {
+            if (!byeMatch.teamAId) byeMatch.teamAId = newTeam.id;
+            else if (!byeMatch.teamBId) byeMatch.teamBId = newTeam.id;
+            byeMatch.isBye = false;
+            byeMatch.completed = false;
+            byeMatch.winnerId = null;
+            propagateKnockoutWinners(t.knockout);
+            showToast(`Dupla ${newTeam.name} ocupou uma vaga BYE na 1ª fase!`, 'success');
+          } else {
+            showToast(`Dupla cadastrada! Como o mata-mata já iniciou sem vagas BYE, você pode usar "Editar" para substituir uma dupla.`, 'info');
+          }
+        }
+      }
+
+      saveToStorage();
+      renderParticipantsManagerList();
+      renderActiveTournament();
+    }
+
+    function confirmPostDrawDeleteTeam(teamId) {
+      const t = appState.activeTournament;
+      if (!t) return;
+      const team = t.teams.find(tm => tm.id === teamId);
+      if (!team) return;
+
+      if (t.teams.length <= 3) {
+        showToast('O torneio precisa de pelo menos 3 duplas.', 'error');
+        return;
+      }
+
+      showConfirmDialog(
+        `Remover Dupla ${team.name}?`,
+        `A dupla "${team.name}" será removida e as chaves serão reequilibradas automaticamente (máx. 4 duplas por chave), atualizando também o mata-mata se ativo.`,
+        () => {
+          t.teams = t.teams.filter(tm => tm.id !== teamId);
+
+          // Remover dos grupos, limpar chaves vazias e manter distribuição igualitária (máx. 4 duplas por chave)
+          if (t.format === 'groups_knockout' && t.groups) {
+            t.groups.forEach(grp => {
+              grp.teamIds = grp.teamIds.filter(id => id !== teamId);
+              grp.matches = grp.matches.filter(m => m.teamAId !== teamId && m.teamBId !== teamId);
+            });
+            t.groups = t.groups.filter(grp => grp.teamIds.length > 0);
+            rebalanceNormalGroups(t, true);
+            updatePmGroupSelectOptions(t);
+          }
+
+          // Se houver mata-mata ativo, dar W.O. / BYE para o adversário da dupla removida
+          if (t.knockout) {
+            t.knockout.rounds.forEach(round => {
+              round.matches.forEach(m => {
+                if (m.teamAId === teamId || m.teamBId === teamId) {
+                  if (m.teamAId === teamId) m.teamAId = null;
+                  if (m.teamBId === teamId) m.teamBId = null;
+
+                  if (m.teamAId && !m.teamBId) {
+                    m.isBye = true;
+                    m.completed = true;
+                    m.winnerId = m.teamAId;
+                    m.loserId = null;
+                  } else if (!m.teamAId && m.teamBId) {
+                    m.isBye = true;
+                    m.completed = true;
+                    m.winnerId = m.teamBId;
+                    m.loserId = null;
+                  } else {
+                    m.isBye = true;
+                    m.completed = false;
+                    m.winnerId = null;
+                    m.loserId = null;
+                  }
+                }
+              });
+            });
+            propagateKnockoutWinners(t.knockout);
+          }
+
+          saveToStorage();
+          renderParticipantsManagerList();
+          renderActiveTournament();
+          showToast(`Dupla ${team.name} removida e chaves reequilibradas.`, 'info');
+        }
+      );
+    }
+
+    function promptReshufflePendingRounds() {
+      const t = appState.activeTournament;
+      if (!t || (t.mode !== 'rei' && t.mode !== 'rainha')) return;
+
+      showConfirmDialog(
+        'Re-sortear Rodadas Pendentes?',
+        'Todas as partidas que ainda não tiveram placar salvo serão sorteadas novamente com o elenco atual. Placares já salvos serão mantidos.',
+        () => {
+          rebuildPendingKingQueenRounds(t);
+          saveToStorage();
+          renderActiveTournament();
+          showToast('Rodadas pendentes sorteadas novamente!', 'success');
+        }
+      );
+    }
+
+    // =========================================================================
+    // GERAÇÃO DE JOGOS: REI DA PRAIA E RAINHA DA PRAIA
+    // =========================================================================
+    function generateKingQueenSchedule(players) {
+      // Embaralhar lista inicial para variedade
+      const shuffled = [...players].sort(() => Math.random() - 0.5);
+      const n = shuffled.length;
+      const rounds = [];
+
+      // Rastrear quantas vezes cada par jogou junto e contra para maximizar diversidade
+      const partnerCount = {};
+      const opponentCount = {};
+      const gamesPlayed = {};
+
+      shuffled.forEach(p => {
+        gamesPlayed[p.id] = 0;
+        shuffled.forEach(q => {
+          if (p.id !== q.id) {
+            partnerCount[`${p.id}_${q.id}`] = 0;
+            opponentCount[`${p.id}_${q.id}`] = 0;
+          }
+        });
+      });
+
+      // Caso clássico 4 jogadores: 3 rodadas exatas onde todos jogam com e contra todos
+      if (n === 4) {
+        const [p0, p1, p2, p3] = shuffled;
+        const pairings = [
+          [[p0, p1], [p2, p3]],
+          [[p0, p2], [p1, p3]],
+          [[p0, p3], [p1, p2]]
+        ];
+        pairings.forEach((matchPair, idx) => {
+          rounds.push({
+            roundNumber: idx + 1,
+            resting: [],
+            matches: [{
+              id: `kq_m_${idx + 1}_1`,
+              court: 1,
+              teamA: [matchPair[0][0].id, matchPair[0][1].id],
+              teamB: [matchPair[1][0].id, matchPair[1][1].id],
+              scoreA: null,
+              scoreB: null,
+              completed: false
+            }]
+          });
+        });
+        return rounds;
+      }
+
+      // Caso clássico 5 jogadores: 5 rodadas (1 folga por rodada, todos jogam 4 partidas, 1 vez com cada parceiro!)
+      if (n === 5) {
+        const p = shuffled;
+        const schedule5 = [
+          { rest: 4, tA: [0, 1], tB: [2, 3] },
+          { rest: 3, tA: [0, 2], tB: [1, 4] },
+          { rest: 2, tA: [0, 3], tB: [1, 4] }, // Ajustado dinamicamente abaixo para perfeição
+        ];
+        // Tabela exata de Whist Tournament para 5 jogadores:
+        const exact5 = [
+          { rest: 0, tA: [1, 2], tB: [3, 4] },
+          { rest: 1, tA: [0, 3], tB: [2, 4] },
+          { rest: 2, tA: [0, 4], tB: [1, 3] },
+          { rest: 3, tA: [0, 1], tB: [2, 4] },
+          { rest: 4, tA: [0, 2], tB: [1, 3] }
+        ];
+        // Melhor tabela de parceiros únicos para 5 jogadores:
+        // R1: (1,2)x(3,4) [folga 0] -> parceiros: 1-2, 3-4
+        // R2: (0,1)x(2,3) [folga 4] -> parceiros: 0-1, 2-3
+        // R3: (0,2)x(1,4) [folga 3] -> parceiros: 0-2, 1-4
+        // R4: (0,3)x(2,4) [folga 1] -> parceiros: 0-3, 2-4
+        // R5: (0,4)x(1,3) [folga 2] -> parceiros: 0-4, 1-3
+        // Todos os 10 pares possíveis jogam juntos exatamente 1 vez!
+        const perfect5 = [
+          { rest: 0, tA: [1, 2], tB: [3, 4] },
+          { rest: 4, tA: [0, 1], tB: [2, 3] },
+          { rest: 3, tA: [0, 2], tB: [1, 4] },
+          { rest: 1, tA: [0, 3], tB: [2, 4] },
+          { rest: 2, tA: [0, 4], tB: [1, 3] }
+        ];
+        perfect5.forEach((r, idx) => {
+          rounds.push({
+            roundNumber: idx + 1,
+            resting: [p[r.rest].id],
+            matches: [{
+              id: `kq_m_${idx + 1}_1`,
+              court: 1,
+              teamA: [p[r.tA[0]].id, p[r.tA[1]].id],
+              teamB: [p[r.tB[0]].id, p[r.tB[1]].id],
+              scoreA: null,
+              scoreB: null,
+              completed: false
+            }]
+          });
+        });
+        return rounds;
+      }
+
+      // Algoritmo Heurístico Balanceado para 6 a 16+ jogadores
+      // Define número ideal de rodadas para que cada atleta jogue pelo menos 4 a 5 partidas
+      const targetGamesPerPlayer = n <= 8 ? (n - 1) : 5;
+      const numRounds = Math.max(3, Math.min(9, Math.ceil((n * targetGamesPerPlayer) / (Math.floor(n / 4) * 4))));
+
+      for (let r = 1; r <= numRounds; r++) {
+        // Ordenar jogadores por quem jogou menos partidas até agora (+ leve aleatoriedade)
+        const sortedByGames = [...shuffled].sort((a, b) => {
+          const diff = gamesPlayed[a.id] - gamesPlayed[b.id];
+          return diff !== 0 ? diff : (Math.random() - 0.5);
+        });
+
+        const activeCount = Math.floor(n / 4) * 4;
+        const activePlayers = sortedByGames.slice(0, activeCount);
+        const restingPlayers = sortedByGames.slice(activeCount).map(p => p.id);
+
+        // Dividir os activePlayers em grupos de 4 buscando minimizar repetição de parceiros
+        const available = [...activePlayers];
+        const roundMatches = [];
+        let courtIdx = 1;
+
+        while (available.length >= 4) {
+          // Escolher 4 jogadores com menor histórico de parceria repetida
+          const group4 = [available.shift()];
+          while (group4.length < 4) {
+            let bestIdx = 0;
+            let bestScore = Infinity;
+            for (let i = 0; i < available.length; i++) {
+              const cand = available[i];
+              let penalty = 0;
+              group4.forEach(g => {
+                penalty += partnerCount[`${g.id}_${cand.id}`] * 10 + opponentCount[`${g.id}_${cand.id}`] * 2;
+              });
+              if (penalty < bestScore) {
+                bestScore = penalty;
+                bestIdx = i;
+              }
+            }
+            group4.push(available.splice(bestIdx, 1)[0]);
+          }
+
+          // Entre os 4 escolhidos [a, b, c, d], testar as 3 combinações possíveis de duplas
+          const [a, b, c, d] = group4;
+          const options = [
+            { tA: [a, b], tB: [c, d] },
+            { tA: [a, c], tB: [b, d] },
+            { tA: [a, d], tB: [b, c] }
+          ];
+
+          let bestOption = options[0];
+          let minPenalty = Infinity;
+
+          options.forEach(opt => {
+            const pPenalty =
+              partnerCount[`${opt.tA[0].id}_${opt.tA[1].id}`] * 20 +
+              partnerCount[`${opt.tB[0].id}_${opt.tB[1].id}`] * 20 +
+              opponentCount[`${opt.tA[0].id}_${opt.tB[0].id}`] * 3 +
+              opponentCount[`${opt.tA[0].id}_${opt.tB[1].id}`] * 3 +
+              opponentCount[`${opt.tA[1].id}_${opt.tB[0].id}`] * 3 +
+              opponentCount[`${opt.tA[1].id}_${opt.tB[1].id}`] * 3;
+
+            if (pPenalty < minPenalty) {
+              minPenalty = pPenalty;
+              bestOption = opt;
+            }
+          });
+
+          // Atualizar contadores
+          const [a1, a2] = bestOption.tA;
+          const [b1, b2] = bestOption.tB;
+          [a1, a2, b1, b2].forEach(p => gamesPlayed[p.id]++);
+
+          partnerCount[`${a1.id}_${a2.id}`]++;
+          partnerCount[`${a2.id}_${a1.id}`]++;
+          partnerCount[`${b1.id}_${b2.id}`]++;
+          partnerCount[`${b2.id}_${b1.id}`]++;
+
+          [a1, a2].forEach(pa => {
+            [b1, b2].forEach(pb => {
+              opponentCount[`${pa.id}_${pb.id}`]++;
+              opponentCount[`${pb.id}_${pa.id}`]++;
+            });
+          });
+
+          roundMatches.push({
+            id: `kq_m_${r}_${courtIdx}`,
+            court: courtIdx++,
+            teamA: [a1.id, a2.id],
+            teamB: [b1.id, b2.id],
+            scoreA: null,
+            scoreB: null,
+            completed: false
+          });
+        }
+
+        rounds.push({
+          roundNumber: r,
+          resting: restingPlayers,
+          matches: roundMatches
+        });
+      }
+
+      return rounds;
+    }
+
+    // =========================================================================
+    // GERAÇÃO DE CHAVES E MATA-MATA: TORNEIO NORMAL (DUPLAS FIXAS)
+    // =========================================================================
+    function generateNormalGroups(teams, preferredGroupSize) {
+      const shuffled = [...teams].sort(() => Math.random() - 0.5);
+      const n = shuffled.length;
+
+      // Garantir no máximo 4 duplas por chave e divisão o mais igualitária possível
+      // Ex: 5 -> 2 chaves (3 e 2), 6 -> 2 chaves (3 e 3), 7 -> 2 chaves (4 e 3), 8 -> 2 chaves (4 e 4), 9 -> 3 chaves (3, 3, 3)
+      const minGroupsForMaxFour = Math.max(1, Math.ceil(n / 4));
+      let numGroups = Math.max(minGroupsForMaxFour, Math.round(n / preferredGroupSize));
+      if (numGroups > Math.floor(n / 2) && n >= 4) {
+        numGroups = Math.max(minGroupsForMaxFour, Math.floor(n / 2));
+      }
+
+      const groups = [];
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+      for (let i = 0; i < numGroups; i++) {
+        groups.push({
+          id: `grp_${i}`,
+          name: `Chave ${letters[i] || (i + 1)}`,
+          teamIds: [],
+          matches: []
+        });
+      }
+
+      // Distribuição igualitária entre as chaves (garante diferença máxima de 1 dupla entre chaves e nunca > 4)
+      shuffled.forEach((team, idx) => {
+        const grpIdx = idx % numGroups;
+        groups[grpIdx].teamIds.push(team.id);
+      });
+
+      // Gerar todos contra todos dentro de cada chave
+      groups.forEach(grp => {
+        const ids = grp.teamIds;
+        let matchIdx = 1;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            grp.matches.push({
+              id: `${grp.id}_m_${matchIdx++}`,
+              groupId: grp.id,
+              teamAId: ids[i],
+              teamBId: ids[j],
+              scoreA: null,
+              scoreB: null,
+              completed: false
+            });
+          }
+        }
+      });
+
+      return groups;
+    }
+
+    /**
+     * Constrói a estrutura completa do Mata-Mata (Oitavas, Quartas, Semifinal, Disputa de 3º Lugar e Final)
+     * com base nas duplas classificadas (em ordem de seed).
+     */
+    function buildKnockoutBracket(seededTeamIds) {
+      const count = seededTeamIds.length;
+      // Determinar potência de 2 adequada (2, 4, 8, 16)
+      let bracketSize = 2;
+      if (count > 8) bracketSize = 16;
+      else if (count > 4) bracketSize = 8;
+      else if (count > 2) bracketSize = 4;
+
+      // Preencher seeds com BYE (null) se não for potência exata de 2
+      const seeds = [...seededTeamIds];
+      while (seeds.length < bracketSize) {
+        seeds.push(null); // BYE
+      }
+
+      // Pareamento clássico de torneio (1 vs N, 2 vs N-1, etc.)
+      function getSeedPairs(size) {
+        if (size === 2) return [[0, 1]];
+        if (size === 4) return [[0, 3], [1, 2]];
+        if (size === 8) return [[0, 7], [3, 4], [1, 6], [2, 5]];
+        if (size === 16) return [
+          [0, 15], [7, 8], [3, 12], [4, 11],
+          [1, 14], [6, 9], [2, 13], [5, 10]
+        ];
+        return [[0, 1]];
+      }
+
+      const stageNamesMap = {
+        16: 'Oitavas de Final',
+        8: 'Quartas de Final',
+        4: 'Semifinal',
+        2: 'Final'
+      };
+
+      const rounds = [];
+      let currentSize = bracketSize;
+      let roundIndex = 0;
+
+      // Criar rodadas principais (Oitavas -> Quartas -> Semi -> Final)
+      while (currentSize >= 2) {
+        const numMatches = currentSize / 2;
+        const stageCode = currentSize === 16 ? 'R16' : currentSize === 8 ? 'QF' : currentSize === 4 ? 'SF' : 'F';
+        const matches = [];
+
+        for (let m = 0; m < numMatches; m++) {
+          matches.push({
+            id: `ko_${stageCode}_${m + 1}`,
+            stage: stageCode,
+            stageName: stageNamesMap[currentSize],
+            matchNumber: m + 1,
+            teamAId: null,
+            teamBId: null,
+            scoreA: null,
+            scoreB: null,
+            winnerId: null,
+            loserId: null,
+            completed: false,
+            isBye: false
+          });
+        }
+
+        rounds.push({
+          stage: stageCode,
+          name: stageNamesMap[currentSize],
+          matches
+        });
+
+        currentSize = currentSize / 2;
+        roundIndex++;
+      }
+
+      // Adicionar Disputa de 3º Lugar se houver Semifinal (bracketSize >= 4)
+      let thirdPlaceMatch = null;
+      if (bracketSize >= 4) {
+        thirdPlaceMatch = {
+          id: 'ko_3RD_1',
+          stage: '3RD',
+          stageName: 'Disputa de 3º Lugar',
+          matchNumber: 1,
+          teamAId: null,
+          teamBId: null,
+          scoreA: null,
+          scoreB: null,
+          winnerId: null,
+          loserId: null,
+          completed: false,
+          isBye: false
+        };
+      }
+
+      // Preencher primeira rodada com os seeds
+      const initialPairs = getSeedPairs(bracketSize);
+      const firstRound = rounds[0];
+
+      initialPairs.forEach(([idxA, idxB], mIdx) => {
+        const match = firstRound.matches[mIdx];
+        match.teamAId = seeds[idxA];
+        match.teamBId = seeds[idxB];
+
+        // Resolver BYE automaticamente
+        if (match.teamAId && !match.teamBId) {
+          match.isBye = true;
+          match.completed = true;
+          match.winnerId = match.teamAId;
+        } else if (!match.teamAId && match.teamBId) {
+          match.isBye = true;
+          match.completed = true;
+          match.winnerId = match.teamBId;
+        }
+      });
+
+      const bracket = {
+        bracketSize,
+        rounds,
+        thirdPlaceMatch
+      };
+
+      // Propagar eventuais BYEs para a próxima fase
+      propagateKnockoutWinners(bracket);
+      return bracket;
+    }
+
+    function propagateKnockoutWinners(bracket) {
+      if (!bracket || !bracket.rounds) return;
+
+      for (let r = 0; r < bracket.rounds.length - 1; r++) {
+        const currentRound = bracket.rounds[r];
+        const nextRound = bracket.rounds[r + 1];
+
+        currentRound.matches.forEach((match, idx) => {
+          const targetMatchIdx = Math.floor(idx / 2);
+          const isSlotA = idx % 2 === 0;
+          const targetMatch = nextRound.matches[targetMatchIdx];
+
+          if (match.completed && match.winnerId) {
+            if (isSlotA) targetMatch.teamAId = match.winnerId;
+            else targetMatch.teamBId = match.winnerId;
+          } else {
+            if (isSlotA) targetMatch.teamAId = null;
+            else targetMatch.teamBId = null;
+          }
+
+          // Se a partida seguinte recebeu um BYE (caso raro de duplo BYE)
+          if (targetMatch.completed && (!targetMatch.teamAId || !targetMatch.teamBId)) {
+            targetMatch.completed = false;
+            targetMatch.winnerId = null;
+            targetMatch.loserId = null;
+            targetMatch.scoreA = null;
+            targetMatch.scoreB = null;
+          }
+        });
+
+        // Se a rodada atual foi a Semifinal ('SF'), preencher Disputa de 3º Lugar com os perdedores
+        if (currentRound.stage === 'SF' && bracket.thirdPlaceMatch) {
+          const sf1 = currentRound.matches[0];
+          const sf2 = currentRound.matches[1];
+          bracket.thirdPlaceMatch.teamAId = (sf1 && sf1.completed && sf1.loserId) ? sf1.loserId : null;
+          bracket.thirdPlaceMatch.teamBId = (sf2 && sf2.completed && sf2.loserId) ? sf2.loserId : null;
+        }
+      }
+    }
+
+    // =========================================================================
+    // INICIAR TORNEIO A PARTIR DO SETUP
+    // =========================================================================
+    function startTournament() {
+      const mode = appState.selectedMode;
+      const name = document.getElementById('input-tournament-name').value.trim() || getModeLabel(mode);
+      const list = appState.setupList;
+
+      if (mode === 'rei' || mode === 'rainha') {
+        if (list.length < 4) {
+          showToast('Cadastre pelo menos 4 atletas para iniciar o rodízio!', 'error');
+          return;
+        }
+        const rounds = generateKingQueenSchedule(list);
+        appState.activeTournament = {
+          id: 'tourney_' + Date.now(),
+          name,
+          mode,
+          players: [...list],
+          rounds,
+          createdAt: new Date().toISOString()
+        };
+      } else {
+        if (list.length < 3) {
+          showToast('Cadastre pelo menos 3 duplas para iniciar o torneio!', 'error');
+          return;
+        }
+        const format = document.getElementById('select-normal-format').value;
+        const groupSize = parseInt(document.getElementById('select-group-size').value, 10) || 3;
+
+        if (format === 'knockout_only') {
+          if (list.length < 4) {
+            showToast('Para mata-mata direto com disputa de 3º lugar, cadastre pelo menos 4 duplas.', 'error');
+            return;
+          }
+          const shuffledIds = [...list].sort(() => Math.random() - 0.5).map(t => t.id);
+          const knockout = buildKnockoutBracket(shuffledIds);
+          appState.activeTournament = {
+            id: 'tourney_' + Date.now(),
+            name,
+            mode: 'normal',
+            format: 'knockout_only',
+            teams: [...list],
+            groups: [],
+            knockout,
+            activeTab: 'knockout',
+            createdAt: new Date().toISOString()
+          };
+        } else {
+          const groups = generateNormalGroups(list, groupSize);
+          appState.activeTournament = {
+            id: 'tourney_' + Date.now(),
+            name,
+            mode: 'normal',
+            format: 'groups_knockout',
+            teams: [...list],
+            groups,
+            knockout: null,
+            activeTab: 'groups',
+            createdAt: new Date().toISOString()
+          };
+        }
+      }
+
+      saveToStorage();
+      renderActiveTournament();
+      switchView('tournament');
+      showToast('Torneio gerado com sucesso! Bom jogo!', 'success');
+    }
+
+    // =========================================================================
+    // RENDERIZAÇÃO DO DASHBOARD DO TORNEIO ATIVO
+    // =========================================================================
+    function renderActiveTournament() {
+      const t = appState.activeTournament;
+      if (!t) return;
+
+      // Cabeçalho do Torneio
+      document.getElementById('tourney-display-name').textContent = t.name;
+      document.getElementById('header-tournament-name').textContent = t.name;
+
+      const modeBadge = document.getElementById('tourney-mode-badge');
+      const modeIcon = document.getElementById('tourney-mode-icon');
+      const kqDash = document.getElementById('dashboard-king-queen');
+      const normalDash = document.getElementById('dashboard-normal');
+      const btnGenKo = document.getElementById('btn-generate-knockout');
+      const btnResetKo = document.getElementById('btn-reset-knockout');
+      const btnSyncKoInline = document.getElementById('btn-sync-knockout-inline');
+      const btnManageLabel = document.getElementById('btn-manage-participants-label');
+
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        modeBadge.textContent = t.mode === 'rei' ? 'Rei da Praia' : 'Rainha da Praia';
+        modeIcon.innerHTML = t.mode === 'rei'
+          ? '<i class="fa-solid fa-crown text-tennis-ball"></i>'
+          : '<i class="fa-solid fa-chess-queen text-sunset-coral"></i>';
+        btnManageLabel.textContent = t.mode === 'rei' ? 'Gerenciar Jogadores' : 'Gerenciar Jogadoras';
+
+        kqDash.classList.remove('hidden');
+        normalDash.classList.add('hidden');
+        btnGenKo.classList.add('hidden');
+        if (btnResetKo) btnResetKo.classList.add('hidden');
+
+        renderKingQueenDashboard(t);
+      } else {
+        modeBadge.textContent = 'Torneio Normal • Duplas Fixas';
+        modeIcon.innerHTML = '<i class="fa-solid fa-trophy text-tennis-ball"></i>';
+        btnManageLabel.textContent = 'Gerenciar Duplas';
+
+        kqDash.classList.add('hidden');
+        normalDash.classList.remove('hidden');
+
+        if (t.format === 'groups_knockout') {
+          btnGenKo.classList.remove('hidden');
+          btnGenKo.innerHTML = t.knockout
+            ? '<i class="fa-solid fa-rotate"></i><span>Atualizar Mata-Mata</span>'
+            : '<i class="fa-solid fa-sitemap"></i><span>Gerar Mata-Mata</span>';
+          if (btnSyncKoInline) btnSyncKoInline.classList.remove('hidden');
+        } else {
+          btnGenKo.classList.add('hidden');
+          if (btnSyncKoInline) btnSyncKoInline.classList.add('hidden');
+        }
+
+        if (btnResetKo) {
+          if (t.knockout) btnResetKo.classList.remove('hidden');
+          else btnResetKo.classList.add('hidden');
+        }
+
+        renderNormalDashboard(t);
+      }
+
+      updateProgressAndPodium(t);
+    }
+
+    // =========================================================================
+    // AÇÕES DE RESET E RE-SORTEIO PÓS-SORTEIO
+    // =========================================================================
+    function confirmFullReshuffle() {
+      const t = appState.activeTournament;
+      if (!t) return;
+
+      const isKq = t.mode === 'rei' || t.mode === 'rainha';
+      const msg = isKq
+        ? 'Isso irá apagar os placares atuais e realizar um novo sorteio completo das duplas e rodadas mantendo todos os atletas inscritos. Deseja continuar?'
+        : t.format === 'groups_knockout'
+          ? 'Isso irá apagar os placares atuais, re-sortear todas as duplas nas chaves (máx. 4 por chave) e resetar o mata-mata. Deseja continuar?'
+          : 'Isso irá apagar os placares atuais e sortear novamente todos os confrontos do mata-mata. Deseja continuar?';
+
+      showConfirmDialog('Sortear Torneio Novamente?', msg, () => {
+        if (isKq) {
+          t.rounds = generateKingQueenSchedule(t.players);
+        } else if (t.format === 'groups_knockout') {
+          const prefSize = (t.groups && t.groups[0] && t.groups[0].teamIds.length === 4) ? 4 : 3;
+          t.groups = generateNormalGroups(t.teams, prefSize);
+          t.knockout = null;
+          t.activeTab = 'groups';
+        } else {
+          const shuffledIds = [...t.teams].sort(() => Math.random() - 0.5).map(tm => tm.id);
+          t.knockout = buildKnockoutBracket(shuffledIds);
+          t.activeTab = 'knockout';
+        }
+
+        saveToStorage();
+        renderActiveTournament();
+        showToast('Novo sorteio realizado com sucesso!', 'success');
+      });
+    }
+
+    function confirmResetKnockout() {
+      const t = appState.activeTournament;
+      if (!t || t.mode !== 'normal' || !t.knockout) return;
+
+      const isFromGroups = t.format === 'groups_knockout';
+      const msg = isFromGroups
+        ? 'Deseja zerar os placares do Mata-Mata e reconstruir o chaveamento com a classificação atual das chaves?'
+        : 'Deseja zerar todos os placares do Mata-Mata e reiniciar a chave eliminatória?';
+
+      showConfirmDialog('Resetar Mata-Mata?', msg, () => {
+        if (isFromGroups) {
+          // Reconstruir diretamente com os classificados atuais dos grupos sem dupla confirmação
+          const firstPlaces = [];
+          const secondPlaces = [];
+          const thirdPlaces = [];
+
+          t.groups.forEach(grp => {
+            const standings = computeGroupStandings(grp, t.teams);
+            if (standings[0]) firstPlaces.push(standings[0]);
+            if (standings[1]) secondPlaces.push(standings[1]);
+            if (standings[2]) thirdPlaces.push(standings[2]);
+          });
+
+          const sortSeed = (a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.gameDiff !== a.gameDiff) return b.gameDiff - a.gameDiff;
+            if (Math.abs(b.gameAverage - a.gameAverage) > 1e-6) return b.gameAverage - a.gameAverage;
+            return b.gamesWon - a.gamesWon;
+          };
+
+          firstPlaces.sort(sortSeed);
+          secondPlaces.sort(sortSeed);
+          thirdPlaces.sort(sortSeed);
+
+          let qualified = [...firstPlaces, ...secondPlaces];
+          if (qualified.length < 4 && thirdPlaces.length > 0) {
+            qualified = [...qualified, ...thirdPlaces.slice(0, 4 - qualified.length)];
+          }
+
+          t.knockout = buildKnockoutBracket(qualified.map(q => q.teamId));
+        } else {
+          // Mata-mata direto: extrair os seeds atuais da primeira rodada e zerar resultados
+          const firstRound = t.knockout.rounds[0];
+          const currentSeeds = [];
+          firstRound.matches.forEach(m => {
+            if (m.teamAId) currentSeeds.push(m.teamAId);
+            if (m.teamBId) currentSeeds.push(m.teamBId);
+          });
+          t.knockout = buildKnockoutBracket(currentSeeds.length >= 2 ? currentSeeds : t.teams.map(tm => tm.id));
+        }
+
+        t.activeTab = 'knockout';
+        saveToStorage();
+        renderActiveTournament();
+        showToast('Mata-mata resetado e atualizado!', 'success');
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // Renderização: Rei e Rainha da Praia
+    // -------------------------------------------------------------------------
+    function renderKingQueenDashboard(t) {
+      const playerMap = Object.fromEntries(t.players.map(p => [p.id, p.name]));
+      const roundsContainer = document.getElementById('kq-rounds-container');
+
+      roundsContainer.innerHTML = t.rounds.map((round, rIdx) => {
+        const restingNames = round.resting.map(id => playerMap[id]).filter(Boolean);
+
+        const matchesHtml = round.matches.map(m => {
+          const pA1 = escapeHtml(playerMap[m.teamA[0]] || 'Atleta');
+          const pA2 = escapeHtml(playerMap[m.teamA[1]] || 'Atleta');
+          const pB1 = escapeHtml(playerMap[m.teamB[0]] || 'Atleta');
+          const pB2 = escapeHtml(playerMap[m.teamB[1]] || 'Atleta');
+
+          const valA = m.scoreA !== null ? m.scoreA : '';
+          const valB = m.scoreB !== null ? m.scoreB : '';
+          const aWin = m.completed && Number(m.scoreA) > Number(m.scoreB);
+          const bWin = m.completed && Number(m.scoreB) > Number(m.scoreA);
+
+          return `
+            <div class="p-4 rounded-2xl bg-white border-2 ${m.completed ? 'border-tennis-dark/50 shadow-sm' : 'border-sand-200'} transition">
+              <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
+                <span><i class="fa-solid fa-table-tennis-paddle-ball text-sunset-orange mr-1"></i> Quadra ${m.court}</span>
+                ${m.completed
+                  ? '<span class="px-2 py-0.5 rounded-full bg-lime-100 text-lime-800 font-extrabold"><i class="fa-solid fa-check mr-1"></i>Concluído</span>'
+                  : '<span class="px-2 py-0.5 rounded-full bg-sand-100 text-slate-500">Aguardando placar</span>'}
+              </div>
+
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <!-- Dupla A -->
+                <div class="flex-1 p-3 rounded-xl ${aWin ? 'bg-lime-50 border border-lime-300' : 'bg-sand-50 border border-sand-200'}">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-xs font-extrabold uppercase tracking-wider text-ocean-sky mb-0.5">Dupla 1</p>
+                      <p class="text-sm font-bold text-ocean-900 truncate">${pA1}</p>
+                      <p class="text-sm font-bold text-ocean-900 truncate">${pA2}</p>
+                    </div>
+                    <input id="scoreA_${m.id}" type="number" min="0" max="99" value="${valA}" placeholder="0"
+                      class="w-14 h-12 text-center font-display font-extrabold text-lg rounded-xl border-2 border-sand-300 focus:border-ocean-900 focus:outline-none bg-white">
+                  </div>
+                </div>
+
+                <div class="text-center font-display font-extrabold text-xs text-slate-400 self-center">VS</div>
+
+                <!-- Dupla B -->
+                <div class="flex-1 p-3 rounded-xl ${bWin ? 'bg-lime-50 border border-lime-300' : 'bg-sand-50 border border-sand-200'}">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-xs font-extrabold uppercase tracking-wider text-sunset-orange mb-0.5">Dupla 2</p>
+                      <p class="text-sm font-bold text-ocean-900 truncate">${pB1}</p>
+                      <p class="text-sm font-bold text-ocean-900 truncate">${pB2}</p>
+                    </div>
+                    <input id="scoreB_${m.id}" type="number" min="0" max="99" value="${valB}" placeholder="0"
+                      class="w-14 h-12 text-center font-display font-extrabold text-lg rounded-xl border-2 border-sand-300 focus:border-ocean-900 focus:outline-none bg-white">
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button type="button" onclick="applySpecialMatchResult('kq', ${rIdx}, '${m.id}', 'woA')" class="px-2.5 py-1.5 rounded-lg bg-sand-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 font-bold text-[11px] transition" title="Vitória por W.O. da Dupla 1 (6x0)">
+                    W.O. D1 (6x0)
+                  </button>
+                  <button type="button" onclick="applySpecialMatchResult('kq', ${rIdx}, '${m.id}', 'woB')" class="px-2.5 py-1.5 rounded-lg bg-sand-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 font-bold text-[11px] transition" title="Vitória por W.O. da Dupla 2 (0x6)">
+                    W.O. D2 (0x6)
+                  </button>
+                  <button type="button" onclick="applySpecialMatchResult('kq', ${rIdx}, '${m.id}', 'retA')" class="px-2.5 py-1.5 rounded-lg bg-sand-100 hover:bg-sky-100 text-slate-700 hover:text-ocean-900 font-bold text-[11px] transition" title="Desistência da Dupla 2: completa games até 6 para Dupla 1">
+                    Desist. D2
+                  </button>
+                  <button type="button" onclick="applySpecialMatchResult('kq', ${rIdx}, '${m.id}', 'retB')" class="px-2.5 py-1.5 rounded-lg bg-sand-100 hover:bg-sky-100 text-slate-700 hover:text-ocean-900 font-bold text-[11px] transition" title="Desistência da Dupla 1: completa games até 6 para Dupla 2">
+                    Desist. D1
+                  </button>
+                </div>
+                <button onclick="saveKingQueenScore(${rIdx}, '${m.id}')" class="w-full sm:w-auto px-4 py-2 rounded-xl bg-ocean-900 hover:bg-sunset-orange text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                  <span>${m.completed ? 'Atualizar Placar' : 'Salvar Placar'}</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="glass-card rounded-3xl p-5 border border-sand-200 shadow-md space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-sand-200">
+              <span class="font-display font-extrabold text-base text-ocean-900">
+                <span class="inline-block w-2 h-2 rounded-full bg-tennis-dark mr-1.5"></span>Rodada ${round.roundNumber}
+              </span>
+              ${restingNames.length > 0
+                ? `<span class="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                    <i class="fa-solid fa-mug-hot mr-1"></i> Descanso: <strong>${escapeHtml(restingNames.join(', '))}</strong>
+                   </span>`
+                : ''}
+            </div>
+            <div class="space-y-3">
+              ${matchesHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Renderizar Tabela de Ranking Individual
+      const standings = computeKingQueenStandings(t);
+      const tbody = document.getElementById('kq-ranking-tbody');
+      tbody.innerHTML = standings.map((row, idx) => {
+        const pos = idx + 1;
+        let posBadge = `<span class="font-bold text-slate-500">${pos}º</span>`;
+        if (pos === 1) posBadge = `<span class="w-6 h-6 rounded-full bg-amber-400 text-ocean-950 font-extrabold text-xs inline-flex items-center justify-center shadow-sm">1</span>`;
+        if (pos === 2) posBadge = `<span class="w-6 h-6 rounded-full bg-slate-300 text-ocean-950 font-extrabold text-xs inline-flex items-center justify-center">2</span>`;
+        if (pos === 3) posBadge = `<span class="w-6 h-6 rounded-full bg-amber-700 text-white font-extrabold text-xs inline-flex items-center justify-center">3</span>`;
+
+        const diffColor = row.gameDiff > 0 ? 'text-emerald-600 font-bold' : row.gameDiff < 0 ? 'text-rose-600' : 'text-slate-500';
+        const diffSign = row.gameDiff > 0 ? `+${row.gameDiff}` : row.gameDiff;
+        const avgFormatted = row.gameAverage.toFixed(3).replace('.', ',');
+
+        return `
+          <tr class="${pos === 1 ? 'bg-lime-50/70' : 'hover:bg-sand-50'} transition">
+            <td class="py-3 px-2">${posBadge}</td>
+            <td class="py-3 px-2 font-bold text-ocean-900">${escapeHtml(row.name)} <span class="text-[11px] font-normal text-slate-400">(${row.played}J)</span></td>
+            <td class="py-3 px-2 text-center font-extrabold text-ocean-900">${row.wins}</td>
+            <td class="py-3 px-2 text-center ${diffColor}">${diffSign}</td>
+            <td class="py-3 px-2 text-center font-semibold text-slate-700">${avgFormatted}</td>
+            <td class="py-3 px-2 text-center text-slate-600">${row.gamesWon}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function saveKingQueenScore(roundIdx, matchId) {
+      const t = appState.activeTournament;
+      const round = t.rounds[roundIdx];
+      const match = round.matches.find(m => m.id === matchId);
+      if (!match) return;
+
+      const rawA = document.getElementById(`scoreA_${matchId}`).value;
+      const rawB = document.getElementById(`scoreB_${matchId}`).value;
+
+      if (rawA === '' || rawB === '') {
+        showToast('Informe os games das duas duplas antes de salvar.', 'error');
+        return;
+      }
+
+      const sA = parseInt(rawA, 10);
+      const sB = parseInt(rawB, 10);
+
+      if (isNaN(sA) || isNaN(sB) || sA < 0 || sB < 0) {
+        showToast('Placar inválido.', 'error');
+        return;
+      }
+
+      if (sA === sB) {
+        showToast('No Beach Tennis não há empate! Defina o vencedor no tie-break.', 'error');
+        return;
+      }
+
+      match.scoreA = sA;
+      match.scoreB = sB;
+      match.completed = true;
+
+      saveToStorage();
+      renderActiveTournament();
+      showToast('Placar registrado e ranking atualizado!', 'success');
+    }
+
+    // -------------------------------------------------------------------------
+    // Renderização: Torneio Normal (Duplas Fixas: Grupos + Mata-Mata)
+    // -------------------------------------------------------------------------
+    function switchNormalTab(tabName) {
+      const t = appState.activeTournament;
+      if (t) {
+        t.activeTab = tabName;
+        saveToStorage();
+      }
+
+      const btnGroups = document.getElementById('tab-normal-groups');
+      const btnKo = document.getElementById('tab-normal-knockout');
+      const panelGroups = document.getElementById('normal-groups-panel');
+      const panelKo = document.getElementById('normal-knockout-panel');
+
+      if (tabName === 'groups') {
+        btnGroups.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 bg-ocean-900 text-white shadow';
+        btnKo.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 text-ocean-900 hover:bg-white/60';
+        panelGroups.classList.remove('hidden');
+        panelKo.classList.add('hidden');
+      } else {
+        btnKo.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 bg-ocean-900 text-white shadow';
+        btnGroups.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 text-ocean-900 hover:bg-white/60';
+        panelKo.classList.remove('hidden');
+        panelGroups.classList.add('hidden');
+      }
+    }
+
+    function renderNormalDashboard(t) {
+      const teamMap = Object.fromEntries(t.teams.map(tm => [tm.id, tm.name]));
+
+      // Se for mata-mata direto, ocultar aba de grupos
+      const tabGroupsBtn = document.getElementById('tab-normal-groups');
+      if (t.format === 'knockout_only') {
+        tabGroupsBtn.classList.add('hidden');
+        switchNormalTab('knockout');
+      } else {
+        tabGroupsBtn.classList.remove('hidden');
+        switchNormalTab(t.activeTab || 'groups');
+      }
+
+      // Renderizar Chaves (Grupos)
+      const groupsContainer = document.getElementById('groups-container');
+      if (t.groups && t.groups.length > 0) {
+        groupsContainer.innerHTML = t.groups.map((grp, gIdx) => {
+          const standings = computeGroupStandings(grp, t.teams);
+
+          const tableRows = standings.map((st, idx) => {
+            const qualifies = idx < 2; // Top 2 de cada chave classificam
+            const diffStr = st.gameDiff > 0 ? `+${st.gameDiff}` : st.gameDiff;
+            const avgStr = st.gameAverage.toFixed(3).replace('.', ',');
+            return `
+              <tr class="${qualifies ? 'bg-lime-50/60' : ''} border-b border-sand-100 text-xs sm:text-sm">
+                <td class="py-2.5 px-2 font-bold">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-md ${qualifies ? 'bg-tennis-ball text-ocean-950 font-extrabold' : 'bg-sand-200 text-slate-600'} text-xs">
+                    ${idx + 1}
+                  </span>
+                </td>
+                <td class="py-2.5 px-2 font-bold text-ocean-900">${escapeHtml(st.name)}</td>
+                <td class="py-2.5 px-2 text-center font-extrabold text-ocean-900">${st.wins}</td>
+                <td class="py-2.5 px-2 text-center ${st.gameDiff >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-600'}">${diffStr}</td>
+                <td class="py-2.5 px-2 text-center font-semibold text-slate-700">${avgStr}</td>
+                <td class="py-2.5 px-2 text-center text-slate-600">${st.gamesWon}/${st.gamesLost}</td>
+              </tr>
+            `;
+          }).join('');
+
+          const matchesList = grp.matches.map(m => {
+            const nameA = escapeHtml(teamMap[m.teamAId] || 'Dupla A');
+            const nameB = escapeHtml(teamMap[m.teamBId] || 'Dupla B');
+            const valA = m.scoreA !== null ? m.scoreA : '';
+            const valB = m.scoreB !== null ? m.scoreB : '';
+
+            return `
+              <div class="p-3 rounded-2xl bg-sand-50 border ${m.completed ? 'border-tennis-dark/60 bg-white' : 'border-sand-200'} space-y-2">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                  <div class="flex-1 flex items-center justify-between gap-2">
+                    <span class="text-xs sm:text-sm font-bold text-ocean-900 truncate flex-1">${nameA}</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <input id="grpScoreA_${m.id}" type="number" min="0" max="99" value="${valA}" placeholder="0"
+                        class="w-11 h-9 text-center font-extrabold text-sm rounded-lg border border-sand-300 bg-white focus:outline-none focus:border-ocean-900">
+                      <span class="text-xs font-bold text-slate-400">x</span>
+                      <input id="grpScoreB_${m.id}" type="number" min="0" max="99" value="${valB}" placeholder="0"
+                        class="w-11 h-9 text-center font-extrabold text-sm rounded-lg border border-sand-300 bg-white focus:outline-none focus:border-ocean-900">
+                    </div>
+                    <span class="text-xs sm:text-sm font-bold text-ocean-900 truncate flex-1 text-right">${nameB}</span>
+                  </div>
+                  <button onclick="saveGroupMatchScore(${gIdx}, '${m.id}')" class="px-3 py-2 rounded-xl ${m.completed ? 'bg-slate-200 text-ocean-900 hover:bg-ocean-900 hover:text-white' : 'bg-ocean-900 text-white hover:bg-sunset-orange'} text-xs font-bold transition shrink-0">
+                    ${m.completed ? '<i class="fa-solid fa-check"></i> Salvo' : 'Salvar'}
+                  </button>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-1 pt-1.5 border-t border-sand-200/70 text-[10px]">
+                  <span class="text-slate-400 font-semibold">Regras CBT:</span>
+                  <div class="flex flex-wrap gap-1">
+                    <button type="button" onclick="applySpecialMatchResult('group', ${gIdx}, '${m.id}', 'woA')" class="px-2 py-0.5 rounded bg-sand-200/70 hover:bg-amber-100 text-slate-700 font-bold" title="W.O. a favor da Dupla 1 (6x0)">W.O. 1 (6x0)</button>
+                    <button type="button" onclick="applySpecialMatchResult('group', ${gIdx}, '${m.id}', 'woB')" class="px-2 py-0.5 rounded bg-sand-200/70 hover:bg-amber-100 text-slate-700 font-bold" title="W.O. a favor da Dupla 2 (0x6)">W.O. 2 (0x6)</button>
+                    <button type="button" onclick="applySpecialMatchResult('group', ${gIdx}, '${m.id}', 'retA')" class="px-2 py-0.5 rounded bg-sand-200/70 hover:bg-sky-100 text-slate-700 font-bold" title="Dupla 2 desistiu: completa games até 6 para Dupla 1">Desist. 2</button>
+                    <button type="button" onclick="applySpecialMatchResult('group', ${gIdx}, '${m.id}', 'retB')" class="px-2 py-0.5 rounded bg-sand-200/70 hover:bg-sky-100 text-slate-700 font-bold" title="Dupla 1 desistiu: completa games até 6 para Dupla 2">Desist. 1</button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="glass-card rounded-3xl p-5 sm:p-6 border border-sand-200 shadow-md space-y-5">
+              <div class="flex items-center justify-between">
+                <h3 class="font-display font-extrabold text-lg text-ocean-900 flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-sunset-orange"></span>
+                  ${escapeHtml(grp.name)}
+                </h3>
+                <span class="text-[11px] font-bold text-lime-800 bg-lime-100 px-2.5 py-0.5 rounded-full">Top 2 classificam</span>
+              </div>
+
+              <!-- Tabela da Chave -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b-2 border-sand-200 text-[11px] font-extrabold uppercase text-slate-500">
+                      <th class="py-2 px-2">#</th>
+                      <th class="py-2 px-2">Dupla</th>
+                      <th class="py-2 px-2 text-center" title="Vitórias">V</th>
+                      <th class="py-2 px-2 text-center" title="Saldo de Games (GG - GP)">SG</th>
+                      <th class="py-2 px-2 text-center" title="Game Average (Aproveitamento)">AVG</th>
+                      <th class="py-2 px-2 text-center" title="Games Ganhos / Perdidos">GG/GP</th>
+                    </tr>
+                  </thead>
+                  <tbody>${tableRows}</tbody>
+                </table>
+              </div>
+
+              <p class="text-[10px] text-slate-400 leading-relaxed">
+                <strong>Desempate CBT/FPT:</strong> 2 duplas = Confronto Direto • 3+ duplas = Saldo de Games (SG) → Game Average (AVG) → Games Ganhos (GG).
+              </p>
+
+              <!-- Jogos da Chave -->
+              <div class="space-y-2.5 pt-2 border-t border-sand-200">
+                <p class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Confrontos da Chave</p>
+                ${matchesList}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Renderizar Mata-Mata
+      const emptyNotice = document.getElementById('knockout-empty-notice');
+      const bracketWrapper = document.getElementById('knockout-bracket-wrapper');
+      const roundsGrid = document.getElementById('knockout-rounds-grid');
+
+      if (!t.knockout) {
+        emptyNotice.classList.remove('hidden');
+        bracketWrapper.classList.add('hidden');
+      } else {
+        emptyNotice.classList.add('hidden');
+        bracketWrapper.classList.remove('hidden');
+
+        const colsHtml = t.knockout.rounds.map((round, rIdx) => {
+          const cards = round.matches.map(m => renderKnockoutMatchCard(m, teamMap, rIdx, false)).join('');
+          return `
+            <div class="flex-1 min-w-[290px] max-w-md space-y-4">
+              <div class="px-4 py-2.5 rounded-2xl bg-ocean-900 text-white font-display font-bold text-sm flex items-center justify-between shadow-sm">
+                <span>${escapeHtml(round.name)}</span>
+                <span class="text-xs text-tennis-ball font-extrabold">${round.matches.length} ${round.matches.length === 1 ? 'jogo' : 'jogos'}</span>
+              </div>
+              <div class="space-y-4 flex flex-col justify-around">
+                ${cards}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Coluna Extra para Disputa de 3º Lugar (se existir)
+        let thirdColHtml = '';
+        if (t.knockout.thirdPlaceMatch) {
+          const thirdCard = renderKnockoutMatchCard(t.knockout.thirdPlaceMatch, teamMap, -1, true);
+          thirdColHtml = `
+            <div class="flex-1 min-w-[290px] max-w-md space-y-4">
+              <div class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-700 to-sunset-deep text-white font-display font-bold text-sm flex items-center justify-between shadow-sm">
+                <span><i class="fa-solid fa-medal mr-1.5"></i> Disputa de 3º Lugar</span>
+                <span class="text-xs text-amber-200 font-extrabold">Bronze</span>
+              </div>
+              <div class="space-y-4">
+                ${thirdCard}
+              </div>
+            </div>
+          `;
+        }
+
+        roundsGrid.innerHTML = colsHtml + thirdColHtml;
+      }
+    }
+
+    function renderKnockoutMatchCard(m, teamMap, roundIdx, isThirdPlace) {
+      const nameA = m.teamAId ? escapeHtml(teamMap[m.teamAId] || 'Dupla') : (m.isBye ? 'BYE (Isento)' : 'A definir');
+      const nameB = m.teamBId ? escapeHtml(teamMap[m.teamBId] || 'Dupla') : (m.isBye ? 'BYE (Isento)' : 'A definir');
+
+      const canPlay = Boolean(m.teamAId && m.teamBId && !m.isBye);
+      const valA = m.scoreA !== null ? m.scoreA : '';
+      const valB = m.scoreB !== null ? m.scoreB : '';
+
+      const aWon = m.completed && m.winnerId === m.teamAId;
+      const bWon = m.completed && m.winnerId === m.teamBId;
+
+      const headerLabel = isThirdPlace
+        ? 'Disputa de 3º Lugar'
+        : `${m.stageName} • Jogo ${m.matchNumber}`;
+
+      return `
+        <div class="glass-card rounded-2xl p-4 border-2 ${m.completed ? 'border-tennis-dark shadow-md' : 'border-sand-200'} space-y-3">
+          <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span>${escapeHtml(headerLabel)}</span>
+            ${m.isBye
+              ? '<span class="px-2 py-0.5 rounded bg-sky-100 text-ocean-sky">Avanço Direto</span>'
+              : m.completed
+                ? '<span class="px-2 py-0.5 rounded bg-lime-100 text-lime-800"><i class="fa-solid fa-check"></i> Finalizado</span>'
+                : ''}
+          </div>
+
+          <div class="space-y-2">
+            <!-- Time A -->
+            <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl ${aWon ? 'bg-lime-100/80 border border-lime-400' : 'bg-sand-50 border border-sand-200'}">
+              <span class="text-xs sm:text-sm font-bold ${m.teamAId ? 'text-ocean-900' : 'text-slate-400 italic'} truncate">
+                ${aWon ? '<i class="fa-solid fa-trophy text-amber-500 mr-1"></i>' : ''}${nameA}
+              </span>
+              ${canPlay
+                ? `<input id="koScoreA_${m.id}" type="number" min="0" max="99" value="${valA}" placeholder="0"
+                    class="w-12 h-9 text-center font-extrabold text-sm rounded-lg border border-sand-300 bg-white focus:outline-none focus:border-ocean-900">`
+                : `<span class="text-xs font-bold text-slate-400 px-2">-</span>`}
+            </div>
+
+            <!-- Time B -->
+            <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl ${bWon ? 'bg-lime-100/80 border border-lime-400' : 'bg-sand-50 border border-sand-200'}">
+              <span class="text-xs sm:text-sm font-bold ${m.teamBId ? 'text-ocean-900' : 'text-slate-400 italic'} truncate">
+                ${bWon ? '<i class="fa-solid fa-trophy text-amber-500 mr-1"></i>' : ''}${nameB}
+              </span>
+              ${canPlay
+                ? `<input id="koScoreB_${m.id}" type="number" min="0" max="99" value="${valB}" placeholder="0"
+                    class="w-12 h-9 text-center font-extrabold text-sm rounded-lg border border-sand-300 bg-white focus:outline-none focus:border-ocean-900">`
+                : `<span class="text-xs font-bold text-slate-400 px-2">-</span>`}
+            </div>
+          </div>
+
+          ${canPlay ? `
+            <button onclick="saveKnockoutScore('${m.id}', ${roundIdx}, ${isThirdPlace})" class="w-full py-2 px-3 rounded-xl bg-ocean-900 hover:bg-sunset-orange text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-check"></i>
+              <span>${m.completed ? 'Atualizar Placar' : 'Confirmar Vencedor'}</span>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function saveGroupMatchScore(groupIdx, matchId) {
+      const t = appState.activeTournament;
+      if (!t || !t.groups || !t.groups[groupIdx]) return;
+
+      const group = t.groups[groupIdx];
+      const match = group.matches.find(m => m.id === matchId);
+      if (!match) return;
+
+      const rawA = document.getElementById(`grpScoreA_${matchId}`).value;
+      const rawB = document.getElementById(`grpScoreB_${matchId}`).value;
+
+      if (rawA === '' || rawB === '') {
+        showToast('Informe os games das duas duplas antes de salvar.', 'error');
+        return;
+      }
+
+      const sA = parseInt(rawA, 10);
+      const sB = parseInt(rawB, 10);
+
+      if (isNaN(sA) || isNaN(sB) || sA < 0 || sB < 0) {
+        showToast('Placar inválido.', 'error');
+        return;
+      }
+
+      if (sA === sB) {
+        showToast('No Beach Tennis não há empate! Defina o vencedor no tie-break.', 'error');
+        return;
+      }
+
+      match.scoreA = sA;
+      match.scoreB = sB;
+      match.completed = true;
+
+      saveToStorage();
+      renderActiveTournament();
+      showToast('Placar da chave salvo e classificação atualizada!', 'success');
+    }
+
+    /**
+     * Aplica regras oficiais CBT/CBBT para casos especiais:
+     * - W.O.: 6x0 para a dupla vencedora
+     * - Desistência (retirada durante o jogo): completa para o vencedor os games que faltavam para 6 (ex: 3x2 -> 6x2)
+     */
+    function applySpecialMatchResult(scope, containerIdx, matchId, type) {
+      const prefix = scope === 'kq' ? 'score' : 'grpScore';
+      const inputA = document.getElementById(`${prefix}A_${matchId}`);
+      const inputB = document.getElementById(`${prefix}B_${matchId}`);
+      if (!inputA || !inputB) return;
+
+      const curA = parseInt(inputA.value, 10) || 0;
+      const curB = parseInt(inputB.value, 10) || 0;
+
+      if (type === 'woA') {
+        inputA.value = 6;
+        inputB.value = 0;
+        showToast('Regra W.O. CBT aplicada: 6x0 para Dupla 1.', 'info');
+      } else if (type === 'woB') {
+        inputA.value = 0;
+        inputB.value = 6;
+        showToast('Regra W.O. CBT aplicada: 0x6 para Dupla 2.', 'info');
+      } else if (type === 'retA') {
+        // Dupla 2 desistiu: Dupla 1 recebe os games que faltavam até 6 (ou 7 se adversário tinha 5/6)
+        const targetWin = curB >= 5 ? 7 : 6;
+        inputA.value = Math.max(curA, targetWin);
+        inputB.value = curB;
+        showToast(`Desistência da Dupla 2: placar ajustado para ${inputA.value}x${inputB.value}.`, 'info');
+      } else if (type === 'retB') {
+        // Dupla 1 desistiu: Dupla 2 recebe os games que faltavam até 6 (ou 7 se adversário tinha 5/6)
+        const targetWin = curA >= 5 ? 7 : 6;
+        inputA.value = curA;
+        inputB.value = Math.max(curB, targetWin);
+        showToast(`Desistência da Dupla 1: placar ajustado para ${inputA.value}x${inputB.value}.`, 'info');
+      }
+
+      if (scope === 'kq') {
+        saveKingQueenScore(containerIdx, matchId);
+      } else {
+        saveGroupMatchScore(containerIdx, matchId);
+      }
+    }
+
+    function advanceGroupsToKnockout() {
+      const t = appState.activeTournament;
+      if (!t || t.mode !== 'normal') return;
+
+      // Coletar classificados de cada grupo (Top 2 de cada grupo, intercalados por posição)
+      const firstPlaces = [];
+      const secondPlaces = [];
+      const thirdPlaces = [];
+
+      t.groups.forEach(grp => {
+        const standings = computeGroupStandings(grp, t.teams);
+        if (standings[0]) firstPlaces.push(standings[0]);
+        if (standings[1]) secondPlaces.push(standings[1]);
+        if (standings[2]) thirdPlaces.push(standings[2]);
+      });
+
+      // Ordenar cada pote entre chaves distintas usando critérios oficiais (Vitórias -> Saldo de Games -> Game Average -> Games Ganhos)
+      const sortSeed = (a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.gameDiff !== a.gameDiff) return b.gameDiff - a.gameDiff;
+        if (Math.abs(b.gameAverage - a.gameAverage) > 1e-6) return b.gameAverage - a.gameAverage;
+        return b.gamesWon - a.gamesWon;
+      };
+
+      firstPlaces.sort(sortSeed);
+      secondPlaces.sort(sortSeed);
+      thirdPlaces.sort(sortSeed);
+
+      let qualified = [...firstPlaces, ...secondPlaces];
+
+      // Garantir pelo menos 4 duplas para ter Semifinal, 3º Lugar e Final
+      if (qualified.length < 4 && thirdPlaces.length > 0) {
+        qualified = [...qualified, ...thirdPlaces.slice(0, 4 - qualified.length)];
+      }
+
+      if (qualified.length < 2) {
+        showToast('Não há duplas suficientes para gerar o mata-mata.', 'error');
+        return;
+      }
+
+      const createBracket = () => {
+        t.knockout = buildKnockoutBracket(qualified.map(q => q.teamId));
+        t.activeTab = 'knockout';
+        saveToStorage();
+        renderActiveTournament();
+        showToast(`Mata-mata gerado com ${qualified.length} duplas classificadas!`, 'success');
+      };
+
+      // Verificar se ainda há jogos pendentes nos grupos
+      const pendingGroupMatches = t.groups.reduce((acc, g) => acc + g.matches.filter(m => !m.completed).length, 0);
+      if (pendingGroupMatches > 0 || t.knockout) {
+        showConfirmDialog(
+          t.knockout ? 'Regerar Chaveamento Eliminatório?' : 'Gerar Mata-Mata Agora?',
+          pendingGroupMatches > 0
+            ? `Ainda existem ${pendingGroupMatches} jogo(s) sem placar na fase de chaves. Deseja gerar o mata-mata com a classificação atual?`
+            : 'Isso irá criar uma nova chave eliminatória com base na classificação atual dos grupos.',
+          createBracket
+        );
+      } else {
+        createBracket();
+      }
+    }
+
+    function saveKnockoutScore(matchId, roundIdx, isThirdPlace) {
+      const t = appState.activeTournament;
+      if (!t || !t.knockout) return;
+
+      const match = isThirdPlace
+        ? t.knockout.thirdPlaceMatch
+        : t.knockout.rounds[roundIdx].matches.find(m => m.id === matchId);
+
+      if (!match) return;
+
+      const rawA = document.getElementById(`koScoreA_${matchId}`).value;
+      const rawB = document.getElementById(`koScoreB_${matchId}`).value;
+
+      if (rawA === '' || rawB === '') {
+        showToast('Preencha os games das duas duplas.', 'error');
+        return;
+      }
+
+      const sA = parseInt(rawA, 10);
+      const sB = parseInt(rawB, 10);
+
+      if (isNaN(sA) || isNaN(sB) || sA < 0 || sB < 0 || sA === sB) {
+        showToast('O placar não pode terminar empatado no mata-mata.', 'error');
+        return;
+      }
+
+      match.scoreA = sA;
+      match.scoreB = sB;
+      match.completed = true;
+      match.winnerId = sA > sB ? match.teamAId : match.teamBId;
+      match.loserId = sA > sB ? match.teamBId : match.teamAId;
+
+      if (!isThirdPlace) {
+        propagateKnockoutWinners(t.knockout);
+      }
+
+      saveToStorage();
+      renderActiveTournament();
+      showToast('Vencedor avançado na chave!', 'success');
+    }
+
+    // =========================================================================
+    // PROGRESSO E PÓDIO FINAL (1º, 2º E 3º LUGARES)
+    // =========================================================================
+    function updateProgressAndPodium(t) {
+      const progressBadge = document.getElementById('tourney-progress-badge');
+      let totalMatches = 0;
+      let completedMatches = 0;
+      let isFinished = false;
+
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        t.rounds.forEach(r => {
+          r.matches.forEach(m => {
+            totalMatches++;
+            if (m.completed) completedMatches++;
+          });
+        });
+        isFinished = totalMatches > 0 && completedMatches === totalMatches;
+      } else {
+        t.groups.forEach(g => {
+          g.matches.forEach(m => {
+            totalMatches++;
+            if (m.completed) completedMatches++;
+          });
+        });
+        if (t.knockout) {
+          t.knockout.rounds.forEach(r => {
+            r.matches.forEach(m => {
+              if (!m.isBye) {
+                totalMatches++;
+                if (m.completed) completedMatches++;
+              }
+            });
+          });
+          if (t.knockout.thirdPlaceMatch) {
+            totalMatches++;
+            if (t.knockout.thirdPlaceMatch.completed) completedMatches++;
+          }
+          const finalRound = t.knockout.rounds[t.knockout.rounds.length - 1];
+          const finalMatch = finalRound && finalRound.matches[0];
+          const thirdDone = !t.knockout.thirdPlaceMatch || t.knockout.thirdPlaceMatch.completed;
+          isFinished = Boolean(finalMatch && finalMatch.completed && thirdDone);
+        }
+      }
+
+      progressBadge.textContent = `${completedMatches}/${totalMatches} Jogos Concluídos`;
+
+      if (isFinished) {
+        showPodiumModal(false);
+      } else {
+        document.getElementById('podium-banner').classList.add('hidden');
+      }
+    }
+
+    function showPodiumModal(manualTrigger) {
+      const t = appState.activeTournament;
+      if (!t) return;
+
+      let first = null;
+      let second = null;
+      let third = null;
+
+      if (t.mode === 'rei' || t.mode === 'rainha') {
+        const standings = computeKingQueenStandings(t);
+        first = standings[0] ? { name: standings[0].name, sub: `${standings[0].wins}V • SG ${standings[0].gameDiff >= 0 ? '+' : ''}${standings[0].gameDiff} • AVG ${standings[0].gameAverage.toFixed(3).replace('.', ',')}` } : null;
+        second = standings[1] ? { name: standings[1].name, sub: `${standings[1].wins}V • SG ${standings[1].gameDiff >= 0 ? '+' : ''}${standings[1].gameDiff} • AVG ${standings[1].gameAverage.toFixed(3).replace('.', ',')}` } : null;
+        third = standings[2] ? { name: standings[2].name, sub: `${standings[2].wins}V • SG ${standings[2].gameDiff >= 0 ? '+' : ''}${standings[2].gameDiff} • AVG ${standings[2].gameAverage.toFixed(3).replace('.', ',')}` } : null;
+      } else {
+        const teamMap = Object.fromEntries(t.teams.map(tm => [tm.id, tm.name]));
+        if (t.knockout) {
+          const finalRound = t.knockout.rounds[t.knockout.rounds.length - 1];
+          const finalMatch = finalRound && finalRound.matches[0];
+          if (finalMatch && finalMatch.completed) {
+            first = { name: teamMap[finalMatch.winnerId] || 'Campeão', sub: `Final: ${finalMatch.scoreA} x ${finalMatch.scoreB}` };
+            second = { name: teamMap[finalMatch.loserId] || 'Vice-Campeão', sub: 'Vice-Campeão' };
+          }
+          if (t.knockout.thirdPlaceMatch && t.knockout.thirdPlaceMatch.completed) {
+            const m3 = t.knockout.thirdPlaceMatch;
+            third = { name: teamMap[m3.winnerId] || '3º Lugar', sub: `Disputa 3º: ${m3.scoreA} x ${m3.scoreB}` };
+          }
+        }
+      }
+
+      if (!first && manualTrigger) {
+        showToast('Registre mais partidas para formar o pódio!', 'info');
+        return;
+      }
+
+      if (!first) return;
+
+      const banner = document.getElementById('podium-banner');
+      const container = document.getElementById('podium-cards-container');
+      const headline = document.getElementById('podium-headline');
+
+      headline.textContent = t.mode === 'rei'
+        ? 'Rei da Praia Coroado!'
+        : t.mode === 'rainha'
+          ? 'Rainha da Praia Coroada!'
+          : `Campeões • ${t.name}`;
+
+      // Ordem visual: 2º (Prata), 1º (Ouro - destaque maior), 3º (Bronze)
+      container.innerHTML = `
+        <!-- 2º Lugar -->
+        <div class="order-2 md:order-1 rounded-2xl bg-white/10 backdrop-blur-md border border-slate-300/30 p-5 text-center">
+          <div class="w-12 h-12 rounded-full bg-slate-300 text-ocean-950 font-display font-extrabold text-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+            2º
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Vice-Campeão</p>
+          <p class="font-display font-extrabold text-lg text-white truncate">${second ? escapeHtml(second.name) : 'A definir'}</p>
+          <p class="text-xs text-slate-300 mt-1">${second ? escapeHtml(second.sub) : ''}</p>
+        </div>
+
+        <!-- 1º Lugar -->
+        <div class="order-1 md:order-2 rounded-3xl bg-gradient-to-b from-tennis-ball/25 to-white/15 backdrop-blur-md border-2 border-tennis-ball p-6 text-center shadow-2xl md:pb-8">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-ocean-950 font-display font-extrabold text-2xl flex items-center justify-center mx-auto mb-3 shadow-xl">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <p class="text-xs font-extrabold uppercase tracking-wider text-tennis-ball mb-1">1º Lugar • Campeão</p>
+          <p class="font-display font-extrabold text-xl sm:text-2xl text-white truncate">${escapeHtml(first.name)}</p>
+          <p class="text-xs text-tennis-lime mt-1 font-medium">${escapeHtml(first.sub)}</p>
+        </div>
+
+        <!-- 3º Lugar -->
+        <div class="order-3 rounded-2xl bg-white/10 backdrop-blur-md border border-amber-600/40 p-5 text-center">
+          <div class="w-12 h-12 rounded-full bg-amber-600 text-white font-display font-extrabold text-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+            3º
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wider text-amber-300 mb-1">3º Lugar</p>
+          <p class="font-display font-extrabold text-lg text-white truncate">${third ? escapeHtml(third.name) : 'A definir'}</p>
+          <p class="text-xs text-slate-300 mt-1">${third ? escapeHtml(third.sub) : ''}</p>
+        </div>
+      `;
+
+      banner.classList.remove('hidden');
+      if (manualTrigger) {
+        banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Inicialização ao carregar a página
+    window.addEventListener('DOMContentLoaded', () => {
+      loadFromStorage();
+      updateHomeResumeBanner();
+    });
+  </script>
+</body>
+</html>
